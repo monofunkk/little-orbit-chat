@@ -24,12 +24,12 @@ export function Tabs({ value, defaultValue, onValueChange, className, ...props }
   function handleChange(next: string) {
     const frame = root.current;
     leavingRectRef.current = frame?.querySelector(':scope > [role="tabpanel"][data-state="active"]')?.getBoundingClientRect() ?? null;
-    const order = frame ? Array.from(frame.querySelectorAll<HTMLElement>('[role="tab"][data-value]')).filter(tab => tab.closest(`.${styles.root}`) === frame).map(tab => tab.dataset.value) : [];
+    const order = frame ? Array.from(frame.querySelectorAll<HTMLElement>('[role="tab"][data-value]')).filter(tab => tab.closest(`.${styles["root"]}`) === frame).map(tab => tab.dataset["value"]) : [];
     const from = order.indexOf(active), to = order.indexOf(next);
     if (from >= 0 && to >= 0 && from !== to) setDirection(to > from ? 1 : -1);
     if (value === undefined) setInternal(next); onValueChange?.(next);
   }
-  return <TabsContext.Provider value={{ active, layoutId, direction, panelHeightRef, leavingRectRef }}><LayoutGroup id={layoutId}><TabsPrimitive.Root {...props} ref={root} className={[styles.root, className].filter(Boolean).join(" ")} value={active} onValueChange={handleChange}/></LayoutGroup></TabsContext.Provider>;
+  return <TabsContext.Provider value={{ active, layoutId, direction, panelHeightRef, leavingRectRef }}><LayoutGroup id={layoutId}><TabsPrimitive.Root {...props} ref={root} className={[styles["root"], className].filter(Boolean).join(" ")} value={active} onValueChange={handleChange}/></LayoutGroup></TabsContext.Provider>;
 }
 
 export function TabsList({ className, ...props }: ComponentPropsWithoutRef<typeof TabsPrimitive.List>) {
@@ -73,12 +73,12 @@ export function TabsList({ className, ...props }: ComponentPropsWithoutRef<typeo
   }, [update]);
   useLayoutEffect(() => { reveal(list.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]') ?? null); }, [active, reveal]);
   const scrollTabs = (direction: number) => viewport.current?.scrollBy({ left: direction * (viewport.current?.clientWidth ?? 0) * .75, behavior: reduced ? "instant" : "smooth" });
-  return <div ref={shell} className={styles.listShell} data-overflow={edges.overflow} data-left={edges.left} data-right={edges.right}>
-    {edges.overflow && <button type="button" className={`${styles.scrollButton} ${styles.scrollLeft}`} aria-label="Scroll tabs left" disabled={!edges.left} onClick={() => scrollTabs(-1)}><NavArrowLeft width={17} height={17} aria-hidden="true"/></button>}
-    <motion.div ref={viewport} layoutScroll className={styles.viewport} onFocusCapture={event => { if (event.target instanceof HTMLElement && event.target.getAttribute("role") === "tab") reveal(event.target); }}>
-      <TabsPrimitive.List {...props} ref={list} className={[styles.list, className].filter(Boolean).join(" ")}/>
+  return <div ref={shell} className={styles["listShell"]} data-overflow={edges.overflow} data-left={edges.left} data-right={edges.right}>
+    {edges.overflow && <button type="button" className={`${styles["scrollButton"]} ${styles["scrollLeft"]}`} aria-label="Scroll tabs left" disabled={!edges.left} onClick={() => scrollTabs(-1)}><NavArrowLeft width={17} height={17} aria-hidden="true"/></button>}
+    <motion.div ref={viewport} layoutScroll className={styles["viewport"]} onFocusCapture={event => { if (event.target instanceof HTMLElement && event.target.getAttribute("role") === "tab") reveal(event.target); }}>
+      <TabsPrimitive.List {...props} ref={list} className={[styles["list"], className].filter(Boolean).join(" ")}/>
     </motion.div>
-    {edges.overflow && <button type="button" className={`${styles.scrollButton} ${styles.scrollRight}`} aria-label="Scroll tabs right" disabled={!edges.right} onClick={() => scrollTabs(1)}><NavArrowRight width={17} height={17} aria-hidden="true"/></button>}
+    {edges.overflow && <button type="button" className={`${styles["scrollButton"]} ${styles["scrollRight"]}`} aria-label="Scroll tabs right" disabled={!edges.right} onClick={() => scrollTabs(1)}><NavArrowRight width={17} height={17} aria-hidden="true"/></button>}
   </div>;
 }
 
@@ -86,9 +86,9 @@ export function TabsTrigger({ className, children, value, ...props }: ComponentP
   const { active } = useContext(TabsContext);
   const reduced = useReducedMotion();
   // The LayoutGroup in Tabs scopes the highlight to this instance, so it glides between triggers but never flies in from another tab set.
-  return <TabsPrimitive.Trigger {...props} value={value} data-value={value} className={[styles.trigger, className].filter(Boolean).join(" ")}>
-    {active === value && <motion.span className={styles.selection} layoutId="selection" layoutDependency={active} transition={reduced ? { duration: 0 } : motionTokens.spring.morph} aria-hidden="true"/>}
-    <span className={styles.triggerLabel}>{children}</span>
+  return <TabsPrimitive.Trigger {...props} value={value} data-value={value} className={[styles["trigger"], className].filter(Boolean).join(" ")}>
+    {active === value && <motion.span className={styles["selection"]} layoutId="selection" layoutDependency={active} transition={reduced ? { duration: 0 } : motionTokens.spring.morph} aria-hidden="true"/>}
+    <span className={styles["triggerLabel"]}>{children}</span>
   </TabsPrimitive.Trigger>;
 }
 
@@ -109,7 +109,7 @@ export function TabsContent({ className, value, forceMount, children, ...props }
   const reduced = useReducedMotion();
   const panel = useRef<HTMLDivElement>(null);
   const selected = active === value;
-  const classes = [styles.content, className].filter(Boolean).join(" ");
+  const classes = [styles["content"], className].filter(Boolean).join(" ");
   // The incoming panel starts at the outgoing panel's height and settles at its own, so content below glides instead of jumping.
   useLayoutEffect(() => {
     const node = panel.current;

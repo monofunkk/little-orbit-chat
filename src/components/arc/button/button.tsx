@@ -3,7 +3,7 @@
 import { forwardRef, isValidElement, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode, Ref, RefObject } from "react";
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion } from "motion/react";
-import type { TargetAndTransition, Variants } from "motion/react";
+import type { HTMLMotionProps, TargetAndTransition, Variants } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./button.module.css";
 
@@ -62,9 +62,9 @@ function useMorphWidth(content: RefObject<HTMLElement | null>, key: string, redu
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
       const next = entry.contentRect.width;
-      if (!next || !measured || reduced || performance.now() > armedUntil.current) { measured = next > 0; width.jump(next || "auto"); delete slot.dataset.morphing; return; }
-      slot.dataset.morphing = "";
-      animate(width, next, { ...motionTokens.spring.morph, onComplete: () => { delete slot.dataset.morphing; } });
+      if (!next || !measured || reduced || performance.now() > armedUntil.current) { measured = next > 0; width.jump(next || "auto"); delete slot.dataset["morphing"]; return; }
+      slot.dataset["morphing"] = "";
+      animate(width, next, { ...motionTokens.spring.morph, onComplete: () => { delete slot.dataset["morphing"]; } });
     });
     observer.observe(node);
     return () => observer.disconnect();
@@ -74,7 +74,7 @@ function useMorphWidth(content: RefObject<HTMLElement | null>, key: string, redu
 
 function LabelPhase({ children, icon, reduced, ref }: { children: ReactNode; icon: boolean; reduced: boolean; ref?: Ref<HTMLSpanElement> }) {
   const present = useIsPresent();
-  return <motion.span ref={ref} className={styles.labelPhase} aria-hidden={present ? undefined : true} initial={reduced ? fadeIn : icon ? iconIn : textIn} animate={rest} exit={reduced ? fadeOut : icon ? iconOut : textOut} transition={reduced ? { duration: motionTokens.duration.instant } : icon ? iconEnter : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{children}</motion.span>;
+  return <motion.span ref={ref} className={styles["labelPhase"]} aria-hidden={present ? undefined : true} initial={reduced ? fadeIn : icon ? iconIn : textIn} animate={rest} exit={reduced ? fadeOut : icon ? iconOut : textOut} transition={reduced ? { duration: motionTokens.duration.instant } : icon ? iconEnter : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{children}</motion.span>;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -95,7 +95,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   const popup = props["aria-haspopup"];
   const anchorsLayer = (popup !== undefined && popup !== false && popup !== "false") || props.role === "combobox" || (props as Record<string, unknown>)["data-state"] !== undefined;
   const inert = disabled || loading || props["aria-disabled"] === true || props["aria-disabled"] === "true";
-  const classes = [styles.button, styles[variant], styles[size], className].filter(Boolean).join(" ");
+  const classes = [styles["button"], styles[variant], styles[size], className].filter(Boolean).join(" ");
 
   return (
     <motion.button
@@ -106,18 +106,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-busy={loading || undefined}
       custom={buttonRef}
       variants={pressVariants}
-      whileTap={reduceMotion || anchorsLayer || inert ? undefined : "pressed"}
+      {...(reduceMotion || anchorsLayer || inert ? {} : { whileTap: "pressed" })}
       transition={motionTokens.spring.snappy}
-      {...props}
+      {...(props as unknown as Omit<HTMLMotionProps<"button">, "ref">)}
       // Loading keeps the button focusable (a disabled button would drop keyboard focus mid-action) and swallows presses instead.
       aria-disabled={loading || props["aria-disabled"] || undefined}
       onClick={loading ? event => event.preventDefault() : onClick}
     >
       <AnimatePresence initial={false}>
-        {loading ? <motion.span key="loader" className={styles.loader} aria-hidden="true" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? fadeOut : { ...iconOut, scale: .8 }} transition={reduceMotion ? { duration: motionTokens.duration.instant } : iconEnter}><span className={styles.spinner} /></motion.span> : null}
+        {loading ? <motion.span key="loader" className={styles["loader"]} aria-hidden="true" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? fadeOut : { ...iconOut, scale: .8 }} transition={reduceMotion ? { duration: motionTokens.duration.instant } : iconEnter}><span className={styles["spinner"]} /></motion.span> : null}
       </AnimatePresence>
-      <motion.span className={[styles.labelSlot, loading ? styles.loadingLabel : ""].filter(Boolean).join(" ")} style={{ width }}>
-        <span ref={contentRef} className={styles.labelContent}>
+      <motion.span className={[styles["labelSlot"], loading ? styles["loadingLabel"] : ""].filter(Boolean).join(" ")} style={{ width }}>
+        <span ref={contentRef} className={styles["labelContent"]}>
           <AnimatePresence mode="popLayout" initial={false}>
             <LabelPhase key={key} icon={!/\S/.test(key.replace(/<[^>]*>/g, ""))} reduced={reduceMotion}>{children}</LabelPhase>
           </AnimatePresence>

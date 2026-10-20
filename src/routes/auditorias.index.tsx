@@ -28,7 +28,7 @@ function Auditorias() {
   const { rol } = useRol();
   const [lista, setLista] = useState<Auditoria[]>(seed);
   const [crear, setCrear] = useState(false);
-  const [f, setF] = useState({ inst: instalaciones[0].id, rcaIds: [] as string[], sup: supervisores[0], fecha: "" });
+  const [f, setF] = useState({ inst: instalaciones[0]?.id ?? "", rcaIds: [] as string[], sup: supervisores[0] ?? "", fecha: "" });
   const visibles = rol === "admin" ? lista : lista.filter((a) => a.supervisor === "Camila Soto");
   const rcasInst = rcas.filter((r) => r.instalacionId === f.inst && r.estado !== "Revocada");
 

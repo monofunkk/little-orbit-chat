@@ -67,13 +67,13 @@ export function Badge({ tone = "neutral", size = "md", icon, className, children
     return () => { observer.disconnect(); controls?.stop(); };
   }, [width, reduce]);
   const enter: Transition = reduce ? { duration: motionTokens.duration.instant } : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] };
-  const classes = [styles.badge, styles[tone], styles[size], className].filter(Boolean).join(" ");
+  const classes = [styles["badge"], styles[tone], styles[size], className].filter(Boolean).join(" ");
   // The pill follows its content: text and icon swap in place while the width springs to the new size.
   return <span {...props} className={classes}>
-    <motion.span ref={body} className={styles.body} style={{ width }}>
-      <span ref={content} className={styles.content}>
-        {icon ? <span className={styles.icon} aria-hidden="true"><AnimatePresence mode="popLayout" initial={false}><Swap key={glyphKey} className={styles.glyph} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOnly : { ...iconIn, transition: exitFast }} transition={reduce ? enter : motionTokens.spring.snappy}>{icon}</Swap></AnimatePresence></span> : null}
-        {text === null ? children : <span className={styles.label}><AnimatePresence mode="popLayout" initial={false}><Swap key={text} className={styles.text} initial={reduce ? { opacity: 0 } : textIn} animate={shown} exit={reduce ? fadeOnly : textOut} transition={enter}>{text}</Swap></AnimatePresence></span>}
+    <motion.span ref={body} className={styles["body"]} style={{ width }}>
+      <span ref={content} className={styles["content"]}>
+        {icon ? <span className={styles["icon"]} aria-hidden="true"><AnimatePresence mode="popLayout" initial={false}><Swap key={glyphKey} className={styles["glyph"]} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOnly : { ...iconIn, transition: exitFast }} transition={reduce ? enter : motionTokens.spring.snappy}>{icon}</Swap></AnimatePresence></span> : null}
+        {text === null ? children : <span className={styles["label"]}><AnimatePresence mode="popLayout" initial={false}><Swap key={text} className={styles["text"]} initial={reduce ? { opacity: 0 } : textIn} animate={shown} exit={reduce ? fadeOnly : textOut} transition={enter}>{text}</Swap></AnimatePresence></span>}
       </span>
     </motion.span>
   </span>;
