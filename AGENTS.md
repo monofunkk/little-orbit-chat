@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- UI components come from the Arc registry (uiarc.dev), copied into src/components/arc; prefer them over src/components/ui. Why: user-chosen component library.
+- Frontend-only for now: all data is mock in src/lib/mock-data.ts; compliance rules live in src/lib/semaforo.ts (tested). Why: backend comes later.

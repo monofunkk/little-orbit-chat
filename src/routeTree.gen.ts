@@ -10,33 +10,115 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InstalacionesRouteImport } from './routes/instalaciones'
+import { Route as RcaRouteImport } from './routes/rca'
+import { Route as ReportesRouteImport } from './routes/reportes'
+import { Route as RevisionRouteImport } from './routes/revision'
+import { Route as AuditoriasIndexRouteImport } from './routes/auditorias.index'
+import { Route as AuditoriasIdRouteImport } from './routes/auditorias.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InstalacionesRoute = InstalacionesRouteImport.update({
+  id: '/instalaciones',
+  path: '/instalaciones',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RcaRoute = RcaRouteImport.update({
+  id: '/rca',
+  path: '/rca',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportesRoute = ReportesRouteImport.update({
+  id: '/reportes',
+  path: '/reportes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RevisionRoute = RevisionRouteImport.update({
+  id: '/revision',
+  path: '/revision',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditoriasIndexRoute = AuditoriasIndexRouteImport.update({
+  id: '/auditorias/',
+  path: '/auditorias/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditoriasIdRoute = AuditoriasIdRouteImport.update({
+  id: '/auditorias/$id',
+  path: '/auditorias/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/instalaciones': typeof InstalacionesRoute
+  '/rca': typeof RcaRoute
+  '/reportes': typeof ReportesRoute
+  '/revision': typeof RevisionRoute
+  '/auditorias/$id': typeof AuditoriasIdRoute
+  '/auditorias/': typeof AuditoriasIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/instalaciones': typeof InstalacionesRoute
+  '/rca': typeof RcaRoute
+  '/reportes': typeof ReportesRoute
+  '/revision': typeof RevisionRoute
+  '/auditorias/$id': typeof AuditoriasIdRoute
+  '/auditorias': typeof AuditoriasIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/instalaciones': typeof InstalacionesRoute
+  '/rca': typeof RcaRoute
+  '/reportes': typeof ReportesRoute
+  '/revision': typeof RevisionRoute
+  '/auditorias/$id': typeof AuditoriasIdRoute
+  '/auditorias/': typeof AuditoriasIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/instalaciones'
+    | '/rca'
+    | '/reportes'
+    | '/revision'
+    | '/auditorias/$id'
+    | '/auditorias/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/instalaciones'
+    | '/rca'
+    | '/reportes'
+    | '/revision'
+    | '/auditorias/$id'
+    | '/auditorias'
+  id:
+    | '__root__'
+    | '/'
+    | '/instalaciones'
+    | '/rca'
+    | '/reportes'
+    | '/revision'
+    | '/auditorias/$id'
+    | '/auditorias/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InstalacionesRoute: typeof InstalacionesRoute
+  RcaRoute: typeof RcaRoute
+  ReportesRoute: typeof ReportesRoute
+  RevisionRoute: typeof RevisionRoute
+  AuditoriasIdRoute: typeof AuditoriasIdRoute
+  AuditoriasIndexRoute: typeof AuditoriasIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +130,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/instalaciones': {
+      id: '/instalaciones'
+      path: '/instalaciones'
+      fullPath: '/instalaciones'
+      preLoaderRoute: typeof InstalacionesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rca': {
+      id: '/rca'
+      path: '/rca'
+      fullPath: '/rca'
+      preLoaderRoute: typeof RcaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reportes': {
+      id: '/reportes'
+      path: '/reportes'
+      fullPath: '/reportes'
+      preLoaderRoute: typeof ReportesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/revision': {
+      id: '/revision'
+      path: '/revision'
+      fullPath: '/revision'
+      preLoaderRoute: typeof RevisionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auditorias/': {
+      id: '/auditorias/'
+      path: '/auditorias'
+      fullPath: '/auditorias/'
+      preLoaderRoute: typeof AuditoriasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auditorias/$id': {
+      id: '/auditorias/$id'
+      path: '/auditorias/$id'
+      fullPath: '/auditorias/$id'
+      preLoaderRoute: typeof AuditoriasIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InstalacionesRoute: InstalacionesRoute,
+  RcaRoute: RcaRoute,
+  ReportesRoute: ReportesRoute,
+  RevisionRoute: RevisionRoute,
+  AuditoriasIdRoute: AuditoriasIdRoute,
+  AuditoriasIndexRoute: AuditoriasIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
