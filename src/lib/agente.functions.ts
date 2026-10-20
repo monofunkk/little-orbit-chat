@@ -32,7 +32,7 @@ export const chatAgente = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ mensajes: mensajesSchema }))
   .handler(async ({ data, context }): Promise<RespuestaAgente> => {
-    const [{ callOrbit }, { herramientasPara, ejecutarHerramienta }] = await Promise.all([import('./orbit.server'), import('./agente/herramientas')]);
+    const [{ callOrbit, preferir }, { herramientasPara, ejecutarHerramienta }] = await Promise.all([import('./orbit.server'), import('./agente/herramientas')]);
     type Msg = Parameters<typeof callOrbit>[0][number];
     const snapshot = await cargarSnapshot(context.supabase, context.userId);
     const hoy = hoyChile();
@@ -73,7 +73,7 @@ export const chatAgente = createServerFn({ method: 'POST' })
         if ('resultado' in salida && salida.resultado && typeof salida.resultado === 'object' && 'accion' in salida.resultado) acciones.push((salida.resultado as { accion: AccionPropuesta }).accion);
         mensajes.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(salida).slice(0, 24000) });
       }
-      resp = await callOrbit(mensajes, { tools, temperature: 0.2, timeoutMs: 90000 });
+      resp = await callOrbit(mensajes, { tools, temperature: 0.2, timeoutMs: 90000, modelos: preferir(resp.modelo) });
     }
     return { respuesta: sanear(resp.content || (acciones.length ? 'Dejé la acción lista para que la confirmes.' : 'No tengo una respuesta para eso.')), herramientas: [...new Set(usadas)], acciones };
   });

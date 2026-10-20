@@ -29,7 +29,7 @@ const data=useSnapshot();
  const [instId,setInstId]=useState(data.instalaciones[0]?.id??'');
  const [edit,setEdit]=useState<Edicion|null>(null);
  const [busy,setBusy]=useState(false);const [status,setStatus]=useState('');
- const rcaRef=useRef<HTMLInputElement>(null);const pertRef=useRef<HTMLInputElement>(null);
+ const rcaRef=useRef<HTMLInputElement>(null);const pertRef=useRef<HTMLInputElement>(null);const reemplazoRef=useRef<HTMLInputElement>(null);
  const inst=data.instalaciones.find(i=>i.id===instId);
  const rca=data.rcas.find(r=>r.instalacionId===instId);
  const perts=data.pertinencias.filter(p=>p.rcaId===rca?.id);
@@ -51,6 +51,29 @@ const data=useSnapshot();
   catch(e){setEdit({kind:'rca',doc:draft});throw e;}
   finally{await snapshotRefresh();}
  });
+ const reemplazarRca=(r:Rca,file:File)=>trabajar('Leyendo el nuevo PDF…',async()=>{
+  if(!inst)return;if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');
+  const leido=await readPdf(file);const path=await subirArchivo(file,'');
+  const nombre=file.name.replace(/\.pdf$/i,'');
+  const u=await supabase.from('rcas').update({archivo_path:path,nombre,numero:'',items:[],validados:false}).eq('id',r.id).select('*').single();
+  if(u.error){await supabase.storage.from('rca-documents').remove([path]);throw u.error;}
+  if(r.archivoPath)await supabase.storage.from('rca-documents').remove([r.archivoPath]);
+  const draft:Rca={...r,archivoPath:path,nombre,numero:'',items:[],validados:false};
+  await indexar('rca',r.id,nombre,leido.pages);
+  setStatus(`Orbit está cruzando la RCA con la normativa de ${tipoLabel[inst.tipo].toLowerCase()}…`);
+  try{const x=await extractRca({data:{id:r.id,text:leido.text}});setEdit({kind:'rca',doc:{...draft,items:x.items}});toast.success(`PDF reemplazado. Checklist listo: ${x.deRca} compromisos de la RCA y ${x.normativos} obligaciones normativas.`);}
+  catch(e){setEdit({kind:'rca',doc:draft});throw e;}
+  finally{await snapshotRefresh();}
+ });
+ const eliminarRca=(r:Rca)=>trabajar('Eliminando la RCA…',async()=>{
+  await supabase.from('documento_fragmentos').delete().in('documento_id',[r.id,...perts.map(p=>p.id)]);
+  const archivos=[r.archivoPath,...perts.map(p=>p.archivoPath)].filter(Boolean);
+  const d=await supabase.from('rcas').delete().eq('id',r.id);if(d.error)throw d.error;
+  if(archivos.length)await supabase.storage.from('rca-documents').remove(archivos);
+  setEdit(null);await snapshotRefresh();toast.success('RCA eliminada. Ya puedes subir la correcta.');
+ });
+ const confirmarReemplazo=()=>{if(!rca)return;const aviso=rca.validados?'\n\nEl checklist confirmado se reemplazará por uno nuevo que tendrás que validar.':'';if(window.confirm(`¿Reemplazar el PDF de la RCA?${aviso}\n\nLas pertinencias adjuntas se mantienen. Las auditorías ya asignadas no cambian.`))reemplazoRef.current?.click();};
+ const confirmarEliminar=()=>{if(!rca)return;const extra=perts.length?` y sus ${perts.length} pertinencia${perts.length>1?'s':''}`:'';if(window.confirm(`¿Eliminar la RCA${extra} de ${inst?.nombre}?\n\nSe borran el PDF y el checklist. Las auditorías ya asignadas no cambian. No se puede deshacer.`))void eliminarRca(rca);};
  const reprocesarRca=(r:Rca)=>trabajar('Orbit está procesando la RCA…',async()=>{const leido=await descargarPaginas(r.archivoPath,r.nombre);await indexar('rca',r.id,r.numero||r.nombre,leido.pages);const x=await extractRca({data:{id:r.id,text:leido.text}});setEdit({kind:'rca',doc:{...r,items:x.items,validados:false}});await snapshotRefresh();});
  const cargarPert=(file:File)=>trabajar('Leyendo la pertinencia…',async()=>{
   if(!rca)throw new Error('Primero carga la RCA de la instalación.');if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');
@@ -87,7 +110,7 @@ const data=useSnapshot();
       <Button variant="ghost" size="sm" disabled={busy} loading={soloNormativa.isPending} onClick={async()=>{await soloNormativa.mutateAsync(inst.id);toast.success('Checklist normativo creado. Revísalo y confírmalo.');}}><ListChecks className="size-4"/>No tiene RCA: usar solo la normativa del tipo</Button>
     </div>:<>
      <Doc icon={<FileText className="size-4 shrink-0 text-muted-foreground"/>} titulo={rca.numero||rca.nombre} detalle={`${rca.archivoPath?'RCA':'Sin RCA'} · ${fmtFecha(rca.fecha)} · ${rca.estado}`} validado={rca.validados} n={rca.items.length} resumen={resumenOrigen(rca.items)}
-      acciones={<><Button size="sm" variant="ghost" disabled={busy} onClick={()=>setEdit({kind:'rca',doc:rca})}>Editar</Button>{rca.archivoPath&&<><Button size="sm" variant="ghost" disabled={busy} title="Volver a procesar" aria-label="Volver a procesar la RCA" onClick={()=>void reprocesarRca(rca)}><RefreshCw className="size-4"/></Button><Button size="sm" variant="ghost" onClick={()=>void verPdf(rca.archivoPath)}>PDF</Button></>}</>}/>
+      acciones={<><Button size="sm" variant="ghost" disabled={busy} onClick={()=>setEdit({kind:'rca',doc:rca})}>Editar</Button>{rca.archivoPath&&<><Button size="sm" variant="ghost" disabled={busy} title="Volver a procesar" aria-label="Volver a procesar la RCA" onClick={()=>void reprocesarRca(rca)}><RefreshCw className="size-4"/></Button><Button size="sm" variant="ghost" onClick={()=>void verPdf(rca.archivoPath)}>PDF</Button></>}<Button size="sm" variant="ghost" disabled={busy} title={rca.archivoPath?'Subir otro PDF en lugar del actual':'Subir el PDF de la RCA'} onClick={confirmarReemplazo}><UploadCloud className="size-4"/>{rca.archivoPath?'Reemplazar PDF':'Subir PDF'}</Button><Button size="sm" variant="ghost" disabled={busy} aria-label="Eliminar RCA" title="Eliminar RCA" onClick={confirmarEliminar}><Trash2 className="size-4"/></Button></>}/>
      <div className="mt-6 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">Pertinencias</p><span className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" disabled={busy} title="Vuelve a leer la RCA y las pertinencias para que Orbit pueda buscar en ellas" onClick={()=>void reindexar()}><ScanSearch className="size-4"/>Actualizar índice</Button><Button size="sm" variant="secondary" disabled={busy} onClick={()=>pertRef.current?.click()}><Paperclip className="size-4"/>Adjuntar pertinencia</Button></span></div>
      {!perts.length&&<p className="mt-2 text-sm text-muted-foreground">Sin pertinencias. Adjunta cada resolución de pertinencia: Orbit propone lo que agrega o cambia y se suma al checklist al confirmarla.</p>}
      <div className="mt-2 divide-y divide-border-subtle">{perts.map(p=><Doc key={p.id} icon={<Paperclip className="size-4 shrink-0 text-muted-foreground"/>} titulo={p.numero||p.nombre} detalle={fmtFecha(p.fecha)} validado={p.validados} n={p.items.length}
@@ -96,6 +119,7 @@ const data=useSnapshot();
    </div>}
   </>}
   <input ref={rcaRef} type="file" accept="application/pdf" hidden onChange={e=>{const f=e.target.files?.[0];if(f)void cargarRca(f);e.target.value='';}}/>
+  <input ref={reemplazoRef} type="file" accept="application/pdf" hidden onChange={e=>{const f=e.target.files?.[0];if(f&&rca)void reemplazarRca(rca,f);e.target.value='';}}/>
   <input ref={pertRef} type="file" accept="application/pdf" hidden onChange={e=>{const f=e.target.files?.[0];if(f)void cargarPert(f);e.target.value='';}}/>
   </>}
  </Page>;
