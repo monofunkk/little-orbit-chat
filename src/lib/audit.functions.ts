@@ -89,3 +89,21 @@ export const setUserRole=createServerFn({method:'POST'}).middleware([requireSupa
 export const getFileUrl=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator(z.object({bucket:z.enum(['rca-documents','audit-evidence']),path:z.string().min(1)})).handler(async({data,context})=>{
   const r=await context.supabase.storage.from(data.bucket).createSignedUrl(data.path,300);check(r.error);return {url:r.data?.signedUrl};
 });
+/** Elimina una instalación con todo lo suyo: RCA, pertinencias, auditorías, evidencias, archivos e índice de documentos. */
+export const deleteInstallation=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator(z.object({id:z.string().uuid()})).handler(async({data,context})=>{
+  const role=await context.supabase.rpc('has_role',{_user_id:context.userId,_role:'admin'});if(!role.data)throw new Error('Solo administradores.');
+  const {supabaseAdmin:db}=await import('@/integrations/supabase/client.server');
+  const [r,p,a]=await Promise.all([db.from('rcas').select('id,archivo_path').eq('instalacion_id',data.id),db.from('pertinencias').select('archivo_path').eq('instalacion_id',data.id),db.from('auditorias').select('id').eq('instalacion_id',data.id)]);
+  for(const x of [r,p,a])check(x.error);
+  const auditIds=(a.data??[]).map(x=>x.id);
+  const ev=auditIds.length?await db.from('evidencias').select('archivo_path').in('auditoria_id',auditIds):{data:[],error:null};check(ev.error);
+  const docs=[...(r.data??[]).map(x=>x.archivo_path),...(p.data??[]).map(x=>x.archivo_path)].filter(Boolean);
+  const evid=(ev.data??[]).map(x=>x.archivo_path);
+  if(docs.length){const x=await db.storage.from('rca-documents').remove(docs);check(x.error);}
+  if(evid.length){const x=await db.storage.from('audit-evidence').remove(evid);check(x.error);}
+  if(auditIds.length){check((await db.from('evidencias').delete().in('auditoria_id',auditIds)).error);check((await db.from('auditorias').delete().in('id',auditIds)).error);}
+  check((await db.from('pertinencias').delete().eq('instalacion_id',data.id)).error);
+  check((await db.from('rcas').delete().eq('instalacion_id',data.id)).error);
+  check((await db.from('instalaciones').delete().eq('id',data.id)).error);
+  return {ok:true,auditorias:auditIds.length,archivos:docs.length+evid.length};
+});

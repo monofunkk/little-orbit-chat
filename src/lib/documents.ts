@@ -1,13 +1,20 @@
 import type {Auditoria,Evidencia,Instalacion} from './domain';
 import {porcentajeCumplimiento} from './semaforo';
 
-export async function readPdf(file:File){
+/** Texto de cada página del PDF (índice 0 = página 1). */
+export async function readPdfPages(file:File){
  const pdfjs=await import('pdfjs-dist');
  const worker=await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
  pdfjs.GlobalWorkerOptions.workerSrc=worker.default;
  const task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())});
  const pdf=await task.promise;
- try{const pages:string[]=[];for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n);const content=await page.getTextContent();pages.push(`Página ${n}\n`+content.items.map(i=>'str' in i?i.str:'').join(' '));}const text=pages.join('\n\n');if(text.replace(/Página \d+/g,'').trim().length<20)throw new Error('Este PDF no contiene texto legible. Carga una copia con texto seleccionable.');return text;}finally{await task.destroy();}
+ try{const pages:string[]=[];for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n);const content=await page.getTextContent();pages.push(content.items.map(i=>'str' in i?i.str:'').join(' ').replace(/\s+/g,' ').trim());}return pages;}finally{await task.destroy();}
+}
+
+export async function readPdf(file:File){
+ const pages=await readPdfPages(file);
+ if(pages.join('').trim().length<20)throw new Error('Este PDF no contiene texto legible. Carga una copia con texto seleccionable.');
+ return {pages,text:pages.map((p,n)=>`Página ${n+1}\n${p}`).join('\n\n')};
 }
 
 export async function downloadReport(a:Auditoria,inst:Instalacion|undefined,evidencias:Evidencia[],fileUrl:(path:string)=>Promise<string|undefined>){

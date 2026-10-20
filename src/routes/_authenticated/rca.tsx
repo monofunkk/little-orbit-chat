@@ -1,6 +1,6 @@
 import {createFileRoute} from '@tanstack/react-router';
 import {useRef,useState} from 'react';
-import {FileText,Plus,Trash2,UploadCloud,RefreshCw,Paperclip,ListChecks} from 'lucide-react';
+import {FileText,Plus,Trash2,UploadCloud,RefreshCw,Paperclip,ListChecks,ScanSearch} from 'lucide-react';
 import {Page,PageHeader} from '@/components/app-shell';
 import {Button} from '@/components/arc/button/button';
 import {Input} from '@/components/arc/input/input';
@@ -9,6 +9,7 @@ import {snapshotOptions,useSnapshot,useAction} from '@/lib/audit-query';
 import {saveRca,savePertinencia,createChecklistNormativo,getFileUrl} from '@/lib/audit.functions';
 import {extractRca,extractPertinencia} from '@/lib/orbit.functions';
 import {readPdf} from '@/lib/documents';
+import {indexarDocumento} from '@/lib/documentos.functions';
 import {supabase} from '@/integrations/supabase/client';
 import {type Rca,type Pertinencia,type ChecklistItem,type Origen,fmtFecha,tipoLabel,origenLabel,checklistInstalacion} from '@/lib/domain';
 import {normativaPorTipo} from '@/lib/normativa';
@@ -40,29 +41,34 @@ const data=useSnapshot();
 
  const cargarRca=(file:File)=>trabajar('Leyendo la RCA…',async()=>{
   if(!inst)throw new Error('Crea una instalación antes de cargar la RCA.');if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');if(rca)throw new Error('Esta instalación ya tiene su RCA. Adjunta los cambios como pertinencia.');
-  const text=await readPdf(file);const path=await subirArchivo(file,'');
+  const leido=await readPdf(file);const text=leido.text;const path=await subirArchivo(file,'');
   const r=await supabase.from('rcas').insert({instalacion_id:instId,nombre:file.name.replace(/\.pdf$/i,''),archivo_path:path}).select('*').single();
   if(r.error){await supabase.storage.from('rca-documents').remove([path]);throw new Error(r.error.code==='23505'?'Esta instalación ya tiene su RCA.':r.error.message);}
   const draft:Rca={id:r.data.id,instalacionId:instId,nombre:r.data.nombre,numero:'',fecha:r.data.fecha,estado:'Vigente',archivoPath:path,items:[],validados:false};
+  await indexar('rca',draft.id,draft.nombre,leido.pages);
   setStatus(`Orbit está cruzando la RCA con la normativa de ${tipoLabel[inst.tipo].toLowerCase()}…`);
   try{const x=await extractRca({data:{id:draft.id,text}});setEdit({kind:'rca',doc:{...draft,items:x.items}});toast.success(`Checklist listo: ${x.deRca} compromisos de la RCA y ${x.normativos} obligaciones normativas.`);}
   catch(e){setEdit({kind:'rca',doc:draft});throw e;}
   finally{await snapshotRefresh();}
  });
- const reprocesarRca=(r:Rca)=>trabajar('Orbit está procesando la RCA…',async()=>{const d=await supabase.storage.from('rca-documents').download(r.archivoPath);if(d.error)throw d.error;const text=await readPdf(new File([d.data],r.nombre+'.pdf',{type:'application/pdf'}));const x=await extractRca({data:{id:r.id,text}});setEdit({kind:'rca',doc:{...r,items:x.items,validados:false}});await snapshotRefresh();});
+ const reprocesarRca=(r:Rca)=>trabajar('Orbit está procesando la RCA…',async()=>{const leido=await descargarPaginas(r.archivoPath,r.nombre);await indexar('rca',r.id,r.numero||r.nombre,leido.pages);const x=await extractRca({data:{id:r.id,text:leido.text}});setEdit({kind:'rca',doc:{...r,items:x.items,validados:false}});await snapshotRefresh();});
  const cargarPert=(file:File)=>trabajar('Leyendo la pertinencia…',async()=>{
   if(!rca)throw new Error('Primero carga la RCA de la instalación.');if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');
-  const text=await readPdf(file);const path=await subirArchivo(file,'pertinencias/');
+  const leido=await readPdf(file);const text=leido.text;const path=await subirArchivo(file,'pertinencias/');
   const p=await supabase.from('pertinencias').insert({rca_id:rca.id,instalacion_id:instId,nombre:file.name.replace(/\.pdf$/i,''),archivo_path:path}).select('*').single();
   if(p.error){await supabase.storage.from('rca-documents').remove([path]);throw p.error;}
   const draft:Pertinencia={id:p.data.id,rcaId:rca.id,instalacionId:instId,numero:'',nombre:p.data.nombre,fecha:p.data.fecha,archivoPath:path,items:[],validados:false};
+  await indexar('pertinencia',draft.id,draft.nombre,leido.pages);
   setStatus('Orbit está buscando qué cambia la pertinencia…');
   try{const x=await extractPertinencia({data:{id:draft.id,text}});setEdit({kind:'pertinencia',doc:{...draft,items:x.items}});toast.success(x.items.length?`La pertinencia propone ${x.items.length} compromisos.`:'La pertinencia no agrega compromisos nuevos.');}
   catch(e){setEdit({kind:'pertinencia',doc:draft});throw e;}
   finally{await snapshotRefresh();}
  });
- const reprocesarPert=(p:Pertinencia)=>trabajar('Orbit está procesando la pertinencia…',async()=>{const d=await supabase.storage.from('rca-documents').download(p.archivoPath);if(d.error)throw d.error;const text=await readPdf(new File([d.data],p.nombre+'.pdf',{type:'application/pdf'}));const x=await extractPertinencia({data:{id:p.id,text}});setEdit({kind:'pertinencia',doc:{...p,items:x.items,validados:false}});await snapshotRefresh();});
- const borrarPert=(p:Pertinencia)=>trabajar('Eliminando la pertinencia…',async()=>{const r=await supabase.from('pertinencias').delete().eq('id',p.id);if(r.error)throw r.error;await supabase.storage.from('rca-documents').remove([p.archivoPath]);await snapshotRefresh();});
+ const reprocesarPert=(p:Pertinencia)=>trabajar('Orbit está procesando la pertinencia…',async()=>{const leido=await descargarPaginas(p.archivoPath,p.nombre);await indexar('pertinencia',p.id,p.numero||p.nombre,leido.pages);const x=await extractPertinencia({data:{id:p.id,text:leido.text}});setEdit({kind:'pertinencia',doc:{...p,items:x.items,validados:false}});await snapshotRefresh();});
+ const borrarPert=(p:Pertinencia)=>trabajar('Eliminando la pertinencia…',async()=>{await supabase.from('documento_fragmentos').delete().eq('documento_id',p.id);const r=await supabase.from('pertinencias').delete().eq('id',p.id);if(r.error)throw r.error;await supabase.storage.from('rca-documents').remove([p.archivoPath]);await snapshotRefresh();});
+ const indexar=async(tipo:'rca'|'pertinencia',documentoId:string,nombre:string,pages:string[])=>{try{await indexarDocumento({data:{instalacionId:instId,tipo,documentoId,nombre,paginas:pages}});}catch(e){toast.error(e instanceof Error?e.message:'No se pudo indexar el documento.');}};
+ const descargarPaginas=async(path:string,nombre:string)=>{const d=await supabase.storage.from('rca-documents').download(path);if(d.error)throw d.error;return readPdf(new File([d.data],nombre+'.pdf',{type:'application/pdf'}));};
+ const reindexar=()=>trabajar('Indexando los documentos para el asistente…',async()=>{let n=0;if(rca?.archivoPath){const x=await descargarPaginas(rca.archivoPath,rca.nombre);await indexar('rca',rca.id,rca.numero||rca.nombre,x.pages);n++;}for(const p of perts){const x=await descargarPaginas(p.archivoPath,p.nombre);await indexar('pertinencia',p.id,p.numero||p.nombre,x.pages);n++;}toast.success(n?`${n} documento${n>1?'s':''} indexado${n>1?'s':''}: Orbit ya puede buscar en ellos.`:'No hay documentos para indexar.');});
  const verPdf=async(path:string)=>{try{const x=await getFileUrl({data:{bucket:'rca-documents',path}});if(x.url)window.open(x.url,'_blank','noopener,noreferrer');}catch(e){toast.error(e instanceof Error?e.message:'No se pudo abrir el PDF.');}};
 
  if(data.rol!=='admin')return <Page><p>Acceso restringido.</p></Page>;
@@ -82,7 +88,7 @@ const data=useSnapshot();
     </div>:<>
      <Doc icon={<FileText className="size-4 shrink-0 text-muted-foreground"/>} titulo={rca.numero||rca.nombre} detalle={`${rca.archivoPath?'RCA':'Sin RCA'} · ${fmtFecha(rca.fecha)} · ${rca.estado}`} validado={rca.validados} n={rca.items.length} resumen={resumenOrigen(rca.items)}
       acciones={<><Button size="sm" variant="ghost" disabled={busy} onClick={()=>setEdit({kind:'rca',doc:rca})}>Editar</Button>{rca.archivoPath&&<><Button size="sm" variant="ghost" disabled={busy} title="Volver a procesar" aria-label="Volver a procesar la RCA" onClick={()=>void reprocesarRca(rca)}><RefreshCw className="size-4"/></Button><Button size="sm" variant="ghost" onClick={()=>void verPdf(rca.archivoPath)}>PDF</Button></>}</>}/>
-     <div className="mt-6 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">Pertinencias</p><Button size="sm" variant="secondary" disabled={busy} onClick={()=>pertRef.current?.click()}><Paperclip className="size-4"/>Adjuntar pertinencia</Button></div>
+     <div className="mt-6 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">Pertinencias</p><span className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" disabled={busy} title="Vuelve a leer la RCA y las pertinencias para que Orbit pueda buscar en ellas" onClick={()=>void reindexar()}><ScanSearch className="size-4"/>Actualizar índice</Button><Button size="sm" variant="secondary" disabled={busy} onClick={()=>pertRef.current?.click()}><Paperclip className="size-4"/>Adjuntar pertinencia</Button></span></div>
      {!perts.length&&<p className="mt-2 text-sm text-muted-foreground">Sin pertinencias. Adjunta cada resolución de pertinencia: Orbit propone lo que agrega o cambia y se suma al checklist al confirmarla.</p>}
      <div className="mt-2 divide-y divide-border-subtle">{perts.map(p=><Doc key={p.id} icon={<Paperclip className="size-4 shrink-0 text-muted-foreground"/>} titulo={p.numero||p.nombre} detalle={fmtFecha(p.fecha)} validado={p.validados} n={p.items.length}
       acciones={<><Button size="sm" variant="ghost" disabled={busy} onClick={()=>setEdit({kind:'pertinencia',doc:p})}>Editar</Button><Button size="sm" variant="ghost" disabled={busy} title="Volver a procesar" aria-label="Volver a procesar la pertinencia" onClick={()=>void reprocesarPert(p)}><RefreshCw className="size-4"/></Button><Button size="sm" variant="ghost" onClick={()=>void verPdf(p.archivoPath)}>PDF</Button><Button size="sm" variant="ghost" disabled={busy} aria-label="Eliminar pertinencia" onClick={()=>{if(window.confirm('¿Eliminar esta pertinencia y sus ítems?'))void borrarPert(p);}}><Trash2 className="size-4"/></Button></>}/>)}</div>

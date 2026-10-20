@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUp, Check, RotateCcw, Sparkles, Wrench, X } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
+import { Markdown } from "@/components/markdown";
 import { useAction } from "@/lib/audit-query";
 import { chatAgente } from "@/lib/agente.functions";
-import { saveInstallation, assignAudit } from "@/lib/audit.functions";
+import { saveInstallation, assignAudit, deleteInstallation } from "@/lib/audit.functions";
 import type { AccionPropuesta } from "@/lib/agente/herramientas";
 
 type Turno =
@@ -18,6 +19,10 @@ const nombreHerramienta: Record<string, string> = {
   ver_auditoria: "detalle de auditoría",
   resumen_cumplimiento: "resumen de cumplimiento",
   normativa_por_tipo: "normativa por tipo",
+  buscar_en_documentos: "documentos",
+  leer_pagina: "página de documento",
+  editar_instalacion: "editar instalación",
+  eliminar_instalacion: "eliminar instalación",
   listar_supervisores: "equipo",
   crear_instalacion: "crear instalación",
   asignar_auditoria: "asignar auditoría",
@@ -30,6 +35,7 @@ export function ChatOrbit({ sugerencias, placeholder, vacio }: { sugerencias: st
   const fin = useRef<HTMLDivElement>(null);
   const crear = useAction((data: Parameters<typeof saveInstallation>[0]["data"]) => saveInstallation({ data }));
   const asignar = useAction((data: Parameters<typeof assignAudit>[0]["data"]) => assignAudit({ data }));
+  const eliminar = useAction((data: { id: string }) => deleteInstallation({ data }));
 
   useEffect(() => { fin.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [turnos, pensando]);
 
@@ -58,6 +64,8 @@ export function ChatOrbit({ sugerencias, placeholder, vacio }: { sugerencias: st
     if (confirmar) {
       try {
         if (accion.tipo === "crear_instalacion") await crear.mutateAsync(accion.datos);
+        else if (accion.tipo === "editar_instalacion") await crear.mutateAsync(accion.datos);
+        else if (accion.tipo === "eliminar_instalacion") await eliminar.mutateAsync({ id: accion.datos.id });
         else await asignar.mutateAsync(accion.datos);
       } catch { return; }
     }
@@ -73,7 +81,7 @@ export function ChatOrbit({ sugerencias, placeholder, vacio }: { sugerencias: st
               <div key={n} className="ml-auto max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-[15px]">{t.content}</div>
             ) : (
               <div key={n} className="flex max-w-full flex-col gap-2">
-                <div className={`whitespace-pre-line text-[15px] leading-relaxed ${t.error ? "text-danger" : ""}`}>{t.content}</div>
+                {t.error ? <p className="text-[15px] text-danger">{t.content}</p> : <Markdown texto={t.content} />}
                 {!!t.herramientas?.length && (
                   <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                     <Wrench className="size-3" /> Consultó: {t.herramientas.map((h) => nombreHerramienta[h] ?? h).join(", ")}
@@ -84,7 +92,7 @@ export function ChatOrbit({ sugerencias, placeholder, vacio }: { sugerencias: st
                     <span>{a.accion.resumen}</span>
                     {a.estado === "pendiente" ? (
                       <span className="flex gap-2">
-                        <Button size="sm" loading={crear.isPending || asignar.isPending} onClick={() => void resolver(n, k, true)}><Check className="size-4" /> Confirmar</Button>
+                        <Button size="sm" loading={crear.isPending || asignar.isPending || eliminar.isPending} onClick={() => void resolver(n, k, true)}><Check className="size-4" /> Confirmar</Button>
                         <Button size="sm" variant="ghost" onClick={() => void resolver(n, k, false)}><X className="size-4" /> Descartar</Button>
                       </span>
                     ) : (

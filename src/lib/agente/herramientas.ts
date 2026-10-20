@@ -10,7 +10,14 @@ import { porcentajeCumplimiento, semaforo, semaforoLabel } from '../semaforo';
  */
 export type AccionPropuesta =
   | { tipo: 'crear_instalacion'; resumen: string; datos: { nombre: string; tipo: TipoInstalacion; ubicacion: string } }
-  | { tipo: 'asignar_auditoria'; resumen: string; datos: { inst: string; sup: string; fecha: string } };
+  | { tipo: 'asignar_auditoria'; resumen: string; datos: { inst: string; sup: string; fecha: string } }
+  | { tipo: 'editar_instalacion'; resumen: string; datos: { id: string; nombre: string; tipo: TipoInstalacion; ubicacion: string } }
+  | { tipo: 'eliminar_instalacion'; resumen: string; datos: { id: string; nombre: string } };
+
+/** Acceso a los documentos indexados (RCA, pertinencias, evidencias). Lo inyecta el servidor con los permisos del usuario. */
+export interface FragmentoDoc { documento_id: string; documento_tipo: string; instalacion_id: string; nombre: string; pagina: number; contenido: string }
+export interface AccesoDocumentos { buscar: (consulta: string, instalacionId?: string) => Promise<FragmentoDoc[]>; pagina: (documentoId: string, pagina: number) => Promise<FragmentoDoc[]> }
+export interface ContextoHerramienta { data: Snapshot; hoy: string; docs?: AccesoDocumentos }
 
 export interface Herramienta<I extends z.ZodTypeAny = z.ZodTypeAny> {
   name: string;
@@ -18,7 +25,7 @@ export interface Herramienta<I extends z.ZodTypeAny = z.ZodTypeAny> {
   input: I;
   inputSchema: Record<string, unknown>;
   soloAdmin?: boolean;
-  run: (args: z.infer<I>, ctx: { data: Snapshot; hoy: string }) => unknown;
+  run: (args: z.infer<I>, ctx: ContextoHerramienta) => unknown;
 }
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -131,6 +138,31 @@ export const herramientas = [
     run: ({ tipo }) => normativaPorTipo[tipo].map((x) => ({ clave: x.clave, organismo: x.organismo, obligacion: x.descripcion, cita: x.referencia })),
   }),
   tool({
+    name: 'buscar_en_documentos',
+    description: 'Busca en el texto completo de los documentos subidos (RCA, pertinencias y evidencias en PDF) y devuelve fragmentos con documento y página. Úsala para cualquier pregunta sobre lo que dicen los documentos. Usa términos concretos (por ejemplo "RIL autocontrol", "bodega residuos peligrosos", "DS 90"); si no hay resultados, prueba sinónimos.',
+    input: z.object({ consulta: z.string().trim().min(2), instalacion: z.string().optional() }),
+    inputSchema: obj({ consulta: { type: 'string', description: 'Palabras clave o pregunta' }, instalacion: { type: 'string', description: 'Opcional: limitar a una instalación (nombre o id)' } }, ['consulta']),
+    run: async ({ consulta, instalacion }, { data, docs }) => {
+      if (!docs) throw new Error('La búsqueda en documentos no está disponible.');
+      const inst = instalacion ? buscarInstalacion(data, instalacion) : undefined;
+      const r = await docs.buscar(consulta, inst?.id);
+      if (!r.length) return { resultados: [], nota: 'Sin coincidencias. Prueba otros términos o revisa si el documento fue indexado (botón "Actualizar índice" en RCA y checklist).' };
+      return { resultados: r.map((f) => ({ documento: f.nombre, tipo: f.documento_tipo, documento_id: f.documento_id, instalacion: data.instalaciones.find((i) => i.id === f.instalacion_id)?.nombre ?? '—', pagina: f.pagina, texto: f.contenido })) };
+    },
+  }),
+  tool({
+    name: 'leer_pagina',
+    description: 'Lee el texto completo de una página de un documento (usa el documento_id que devolvió buscar_en_documentos), para ver el contexto alrededor de un fragmento.',
+    input: z.object({ documento_id: z.string().uuid(), pagina: z.number().int().min(1) }),
+    inputSchema: obj({ documento_id: { type: 'string' }, pagina: { type: 'integer', minimum: 1 } }, ['documento_id', 'pagina']),
+    run: async ({ documento_id, pagina }, { docs }) => {
+      if (!docs) throw new Error('La lectura de documentos no está disponible.');
+      const r = await docs.pagina(documento_id, pagina);
+      if (!r.length) throw new Error('No encontré esa página en los documentos indexados.');
+      return { documento: r[0]!.nombre, pagina, texto: r.map((f) => f.contenido).join(' […] ') };
+    },
+  }),
+  tool({
     name: 'listar_supervisores',
     description: 'Lista las personas del equipo a las que se puede asignar una auditoría.',
     soloAdmin: true,
@@ -166,18 +198,44 @@ export const herramientas = [
       return { requiere_confirmacion: true, accion: { tipo: 'asignar_auditoria', resumen: `Asignar a ${sup.nombre} la auditoría de ${i.nombre} (${checklist.length} ítems), con fecha límite ${fecha_limite}`, datos: { inst: i.id, sup: sup.id, fecha: fecha_limite } } };
     },
   }),
+  tool({
+    name: 'editar_instalacion',
+    description: 'Propone cambiar el nombre, tipo o ubicación de una instalación. No la cambia: la persona debe confirmarlo en el chat.',
+    soloAdmin: true,
+    input: z.object({ instalacion: z.string().min(1), nombre: z.string().trim().min(1).optional(), tipo: z.enum(tiposInstalacion).optional(), ubicacion: z.string().optional() }),
+    inputSchema: obj({ instalacion: { type: 'string', description: 'Nombre o id actual' }, nombre: { type: 'string' }, tipo: { type: 'string', enum: [...tiposInstalacion] }, ubicacion: { type: 'string' } }, ['instalacion']),
+    run: ({ instalacion, nombre, tipo, ubicacion }, { data }): { requiere_confirmacion: true; accion: AccionPropuesta } => {
+      const i = buscarInstalacion(data, instalacion);
+      const datos = { id: i.id, nombre: nombre ?? i.nombre, tipo: tipo ?? i.tipo, ubicacion: ubicacion ?? i.ubicacion };
+      const cambios = [datos.nombre !== i.nombre && `nombre a "${datos.nombre}"`, datos.tipo !== i.tipo && `tipo a ${tipoLabel[datos.tipo].toLowerCase()}`, datos.ubicacion !== i.ubicacion && `ubicación a "${datos.ubicacion}"`].filter(Boolean);
+      if (!cambios.length) throw new Error('No hay cambios respecto de los datos actuales.');
+      return { requiere_confirmacion: true, accion: { tipo: 'editar_instalacion', resumen: `Cambiar en ${i.nombre}: ${cambios.join(', ')}`, datos } };
+    },
+  }),
+  tool({
+    name: 'eliminar_instalacion',
+    description: 'Propone eliminar una instalación con su RCA, pertinencias, auditorías y evidencias. No la elimina: la persona debe confirmarlo en el chat.',
+    soloAdmin: true,
+    input: z.object({ instalacion: z.string().min(1) }),
+    inputSchema: obj({ instalacion: { type: 'string', description: 'Nombre o id' } }, ['instalacion']),
+    run: ({ instalacion }, { data }): { requiere_confirmacion: true; accion: AccionPropuesta } => {
+      const i = buscarInstalacion(data, instalacion);
+      const audits = data.auditorias.filter((a) => a.instalacionId === i.id).length;
+      return { requiere_confirmacion: true, accion: { tipo: 'eliminar_instalacion', resumen: `Eliminar ${i.nombre}${audits ? ` y sus ${audits} auditoría${audits > 1 ? 's' : ''}` : ''}, con su RCA, pertinencias y archivos (no se puede deshacer)`, datos: { id: i.id, nombre: i.nombre } } };
+    },
+  }),
 ] as const;
 
 export const herramientasPara = (rol: Snapshot['rol']) => herramientas.filter((h) => rol === 'admin' || !('soloAdmin' in h && h.soloAdmin));
 
 /** Ejecuta una herramienta por nombre validando su entrada. Errores vuelven como texto para que el agente los explique. */
-export function ejecutarHerramienta(nombre: string, argsJson: string, ctx: { data: Snapshot; hoy: string }) {
+export async function ejecutarHerramienta(nombre: string, argsJson: string, ctx: ContextoHerramienta) {
   const h = herramientasPara(ctx.data.rol).find((x) => x.name === nombre);
   if (!h) return { error: `La herramienta ${nombre} no existe o no está disponible para tu rol.` };
   try {
     const raw: unknown = argsJson.trim() ? JSON.parse(argsJson) : {};
     const args = (h.input as z.ZodTypeAny).parse(raw);
-    return { resultado: (h.run as (a: unknown, c: typeof ctx) => unknown)(args, ctx) };
+    return { resultado: await (h.run as (a: unknown, c: typeof ctx) => unknown)(args, ctx) };
   } catch (e) {
     return { error: e instanceof z.ZodError ? `Parámetros inválidos: ${e.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}` : e instanceof Error ? e.message : 'Error desconocido' };
   }

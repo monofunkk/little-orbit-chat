@@ -14,3 +14,8 @@
 - [x] Una RCA por instalación; pertinencias adjuntas que suman compromisos al checklist al confirmarlas.
 - [x] Agente interno en el chat de Inicio con herramientas de la plataforma (src/lib/agente/herramientas.ts); las escrituras se confirman con un botón.
 - [ ] Probar el agente con Orbit en vivo (depende del límite de uso del proveedor y de que el modelo acepte herramientas; si no, responde con un resumen como contexto).
+- [x] Chat con markdown legible (listas, negritas) y sin signos de exclamación ni emojis.
+- [x] Orbit busca en el texto de los documentos subidos (RCA, pertinencias y evidencias PDF): índice de texto completo en español sin tildes (Postgres), con cita de documento y página.
+- [x] Editar y eliminar instalaciones (también desde el chat, con confirmación).
+- [ ] Búsqueda semántica con embeddings (pgvector disponible) si Orbit expone un modelo de embeddings; hoy la búsqueda es léxica.
+- [ ] Evidencias en foto: hoy solo se indexa el texto de los PDF.

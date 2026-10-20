@@ -1,13 +1,14 @@
 import { snapshotOptions, useSnapshot, useAction } from "@/lib/audit-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, MapPin, Plus, X } from "lucide-react";
+import { Check, MapPin, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Page, PageHeader } from "@/components/app-shell";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { SemaforoBadge } from "@/components/semaforo-badge";
 import { tiposInstalacion, tipoLabel, tipoDescripcion, type TipoInstalacion } from "@/lib/domain";
-import { saveInstallation } from "@/lib/audit.functions";
+import { saveInstallation, deleteInstallation } from "@/lib/audit.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/instalaciones")({
   head: () => ({
@@ -26,10 +27,24 @@ export const Route = createFileRoute("/_authenticated/instalaciones")({
 
 
 function Instalaciones() {
-  const { instalaciones:lista,rol,rcas } = useSnapshot();
+  const { instalaciones:lista,rol,rcas,auditorias } = useSnapshot();
   const guardar=useAction((data:Parameters<typeof saveInstallation>[0]["data"])=>saveInstallation({data}));
   const [nueva, setNueva] = useState(false);
-  const [form, setForm] = useState<{ nombre: string; ubicacion: string; tipo: TipoInstalacion }>({ nombre: "", ubicacion: "", tipo: "piscicultura" });
+  const eliminar=useAction((id:string)=>deleteInstallation({data:{id}}));
+  type Form = { id?: string; nombre: string; ubicacion: string; tipo: TipoInstalacion };
+  const vacio: Form = { nombre: "", ubicacion: "", tipo: "piscicultura" };
+  const [form, setForm] = useState<Form>(vacio);
+  const editando = !!form.id;
+  const cerrar = () => { setNueva(false); setForm(vacio); };
+  const abrirEdicion = (i: (typeof lista)[number]) => { setForm({ id: i.id, nombre: i.nombre, ubicacion: i.ubicacion, tipo: i.tipo }); setNueva(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const borrar = async (i: (typeof lista)[number]) => {
+    const audits = auditorias.filter((a) => a.instalacionId === i.id).length;
+    const detalle = [rcas.some((r) => r.instalacionId === i.id) && "su RCA y checklist", i.pertinencias && `${i.pertinencias} pertinencia${i.pertinencias > 1 ? "s" : ""}`, audits && `${audits} auditoría${audits > 1 ? "s" : ""} con sus evidencias`].filter(Boolean).join(", ");
+    if (!window.confirm(`¿Eliminar "${i.nombre}"?${detalle ? `\n\nTambién se eliminarán ${detalle}.` : ""}\n\nEsta acción no se puede deshacer.`)) return;
+    await eliminar.mutateAsync(i.id);
+    if (form.id === i.id) cerrar();
+    toast.success(`${i.nombre} eliminada.`);
+  };
   if(rol!=="admin") return <Page><p>Acceso restringido.</p></Page>;
 
   return (
@@ -38,7 +53,7 @@ function Instalaciones() {
         title="Instalaciones"
         subtitle="Cada instalación se audita por separado."
         action={
-          <Button onClick={() => setNueva(true)}>
+          <Button onClick={() => { setForm(vacio); setNueva(true); }}>
             <Plus className="size-4" /> Nueva instalación
           </Button>
         }
@@ -49,15 +64,17 @@ function Instalaciones() {
           onSubmit={async(e) => {
             e.preventDefault();
             if (!form.nombre) return;
+            const cambioTipo = editando && lista.find((i) => i.id === form.id)?.tipo !== form.tipo && rcas.some((r) => r.instalacionId === form.id);
             await guardar.mutateAsync(form);
-            setForm({ nombre: "", ubicacion: "", tipo: "piscicultura" });
-            setNueva(false);
+            toast.success(editando ? "Instalación actualizada." : "Instalación creada.");
+            if (cambioTipo) toast.message("Cambiaste el tipo: vuelve a procesar la RCA para cruzarla con la normativa del nuevo tipo.");
+            cerrar();
           }}
           className="composer mb-6 grid gap-4 p-5 md:grid-cols-2"
         >
           <div className="flex items-center justify-between md:col-span-2">
-            <p className="font-medium">Nueva instalación</p>
-            <Button variant="ghost" size="sm" type="button" onClick={() => setNueva(false)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+            <p className="font-medium">{editando ? "Editar instalación" : "Nueva instalación"}</p>
+            <Button variant="ghost" size="sm" type="button" onClick={cerrar} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
               <X className="size-4" />
             </Button>
           </div>
@@ -88,7 +105,7 @@ function Instalaciones() {
             </div>
           </fieldset>
           <div className="md:col-span-2">
-            <Button type="submit" loading={guardar.isPending}>Guardar</Button>
+            <Button type="submit" loading={guardar.isPending} disabled={!form.nombre.trim()}>{editando ? "Guardar cambios" : "Guardar"}</Button>
           </div>
         </form>
       )}
@@ -108,7 +125,11 @@ function Instalaciones() {
               <span className="flex items-center gap-1.5">
                 <MapPin className="size-3.5" /> {i.ubicacion || "—"}
               </span>
-              <span>{rcas.find((r) => r.instalacionId === i.id)?.validados ? "Checklist confirmado" : i.rcas ? "RCA por validar" : "Sin RCA"}{i.pertinencias ? ` · ${i.pertinencias} pertinencia${i.pertinencias > 1 ? "s" : ""}` : ""}</span>
+              <span className="text-right">{rcas.find((r) => r.instalacionId === i.id)?.validados ? "Checklist confirmado" : i.rcas ? "RCA por validar" : "Sin RCA"}{i.pertinencias ? ` · ${i.pertinencias} pertinencia${i.pertinencias > 1 ? "s" : ""}` : ""}</span>
+            </div>
+            <div className="mt-4 flex justify-end gap-1 border-t border-border-subtle pt-3">
+              <Button size="sm" variant="ghost" onClick={() => abrirEdicion(i)}><Pencil className="size-3.5" /> Editar</Button>
+              <Button size="sm" variant="ghost" loading={eliminar.isPending && eliminar.variables === i.id} onClick={() => void borrar(i)} aria-label={`Eliminar ${i.nombre}`}><Trash2 className="size-3.5" /> Eliminar</Button>
             </div>
           </div>
         ))}

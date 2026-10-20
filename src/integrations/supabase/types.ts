@@ -80,6 +80,51 @@ export type Database = {
           },
         ]
       }
+      documento_fragmentos: {
+        Row: {
+          contenido: string
+          created_at: string
+          documento_id: string
+          documento_tipo: string
+          id: string
+          instalacion_id: string
+          nombre: string
+          orden: number
+          pagina: number
+          tsv: unknown
+        }
+        Insert: {
+          contenido: string
+          created_at?: string
+          documento_id: string
+          documento_tipo: string
+          id?: string
+          instalacion_id: string
+          nombre: string
+          orden: number
+          pagina: number
+        }
+        Update: {
+          contenido?: string
+          created_at?: string
+          documento_id?: string
+          documento_tipo?: string
+          id?: string
+          instalacion_id?: string
+          nombre?: string
+          orden?: number
+          pagina?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_fragmentos_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "instalaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evidencias: {
         Row: {
           archivo_path: string
@@ -287,6 +332,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      buscar_fragmentos: {
+        Args: { consulta: string; inst?: string; limite?: number }
+        Returns: {
+          contenido: string
+          documento_id: string
+          documento_tipo: string
+          id: string
+          instalacion_id: string
+          nombre: string
+          pagina: number
+          rango: number
+        }[]
+      }
+      f_unaccent: { Args: { "": string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
