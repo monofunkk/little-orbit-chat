@@ -9,6 +9,8 @@ import { Input } from "@/components/arc/input/input";
 import { SemaforoDot } from "@/components/semaforo-badge";
 import { fmtFecha, estadoTone, checklistInstalacion } from "@/lib/domain";
 import { assignAudit } from "@/lib/audit.functions";
+import { SelectorItems } from "@/components/selector-items";
+import { toast } from "sonner";
 import { porcentajeCumplimiento } from "@/lib/semaforo";
 
 export const Route = createFileRoute("/_authenticated/auditorias/")({
@@ -37,24 +39,28 @@ function Auditorias() {
   const rcaInst = rcas.find((r) => r.instalacionId === f.inst);
   const checklist = checklistInstalacion(rcaInst, pertinencias);
   const pertInst = pertinencias.filter((p) => p.rcaId === rcaInst?.id && p.validados).length;
+  const todos = (inst: string) => new Set(checklistInstalacion(rcas.find((r) => r.instalacionId === inst), pertinencias).map((x) => x.id));
+  const [sel, setSel] = useState<Set<string>>(() => todos(f.inst));
+  const elegidos = checklist.filter((x) => sel.has(x.id));
 
   return (
     <Page>
       <PageHeader
         title={rol === "admin" ? "Auditorías" : "Mis auditorías"}
-        subtitle={rol === "admin" ? "Elige la instalación, el supervisor y la fecha: el checklist sale de su RCA, la normativa y sus pertinencias." : "Abre una auditoría para completar el checklist."}
-        action={rol === "admin" && <Button onClick={() => setCrear(true)}><Plus className="size-4" /> Nueva auditoría</Button>}
+        subtitle={rol === "admin" ? "Elige la instalación, los ítems a auditar, el supervisor y la fecha." : "Abre una auditoría para completar el checklist."}
+        action={rol === "admin" && <Button onClick={() => { setSel(todos(f.inst)); setCrear(true); }}><Plus className="size-4" /> Nueva auditoría</Button>}
       />
 
       {crear && (
         <form
           onSubmit={async(e) => {
             e.preventDefault();
-            if (!checklist.length || !f.fecha) return;
-            await asignar.mutateAsync(f);
+            if (!elegidos.length || !f.fecha) return;
+            await asignar.mutateAsync({ ...f, itemIds: elegidos.map((x) => x.id) });
+            toast.success(`Auditoría asignada con ${elegidos.length} ítem${elegidos.length > 1 ? "s" : ""}.`);
             setCrear(false);
           }}
-          className="composer mb-8 flex flex-col gap-6 p-6"
+          className="composer mb-8 flex min-w-0 flex-col gap-6 p-4 sm:p-6"
         >
           <div className="flex items-center justify-between">
             <p className="font-medium">Nueva auditoría</p>
@@ -62,15 +68,17 @@ function Auditorias() {
           </div>
           <Step n={1} label="Instalación">
             {instalaciones.map((i) => (
-              <Chip key={i.id} on={f.inst === i.id} onClick={() => setF({ ...f, inst: i.id })}>{i.nombre}</Chip>
+              <Chip key={i.id} on={f.inst === i.id} onClick={() => { setF({ ...f, inst: i.id }); setSel(todos(i.id)); }}>{i.nombre}</Chip>
             ))}
           </Step>
-          <Step n={2} label="Checklist">
+          <Step n={2} label="Ítems a auditar">
             {checklist.length ? (
-              <span className="text-sm text-secondary-foreground">
-                {checklist.length} ítems: RCA {rcaInst?.numero || rcaInst?.nombre}
-                {pertInst ? ` + ${pertInst} pertinencia${pertInst > 1 ? "s" : ""}` : ""}, con la normativa del tipo
-              </span>
+              <div className="w-full min-w-0">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Checklist de RCA {rcaInst?.numero || rcaInst?.nombre}{pertInst ? ` + ${pertInst} pertinencia${pertInst > 1 ? "s" : ""}` : ""}, con la normativa del tipo. Marca a mano o pídele a Orbit.
+                </p>
+                <SelectorItems key={f.inst} inst={f.inst} items={checklist} seleccion={sel} onChange={setSel} />
+              </div>
             ) : (
               <span className="text-sm text-muted-foreground">
                 {rcaInst ? (rcaInst.estado === "Revocada" ? "La RCA de esta instalación está revocada." : "Confirma el checklist en RCA y checklist antes de auditar.") : "Esta instalación aún no tiene RCA ni checklist."}{" "}
@@ -82,9 +90,9 @@ function Auditorias() {
             {supervisores.map((s) => <Chip key={s.id} on={f.sup === s.id} onClick={() => setF({ ...f, sup: s.id })}>{s.nombre}</Chip>)}
           </Step>
           <Step n={4} label="Fecha límite">
-            <div className="w-56"><Input label="Fecha" type="date" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} /></div>
+            <div className="w-full sm:w-56"><Input label="Fecha" type="date" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} /></div>
           </Step>
-          <div><Button type="submit" loading={asignar.isPending} disabled={!checklist.length || !f.fecha || !f.sup}>Asignar auditoría</Button></div>
+          <div><Button type="submit" className="w-full sm:w-auto" loading={asignar.isPending} disabled={!elegidos.length || !f.fecha || !f.sup}>{elegidos.length ? `Asignar auditoría con ${elegidos.length} ítem${elegidos.length > 1 ? "s" : ""}` : "Marca al menos un ítem"}</Button></div>
         </form>
       )}
 
@@ -120,7 +128,7 @@ function Step({ n, label, children }: { n: number; label: string; children: Reac
       <p className="mb-2 flex items-center gap-2 text-sm text-secondary-foreground">
         <span className="grid size-5 place-items-center rounded-full bg-muted text-[11px]">{n}</span>{label}
       </p>
-      <div className="flex flex-wrap gap-2 pl-7">{children}</div>
+      <div className="flex min-w-0 flex-wrap gap-2 sm:pl-7">{children}</div>
     </div>
   );
 }

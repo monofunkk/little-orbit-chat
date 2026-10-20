@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { itemSchema, tiposInstalacion, checklistInstalacion, type Snapshot, type Auditoria, type Rca, type Pertinencia, type TipoInstalacion, type EstadoAuditoria, validateReview, canSubmit, editableAudit } from './domain';
 import { itemsNormativos } from './normativa';
+import { filtrarSeleccion } from './seleccion';
 import { porcentajeCumplimiento, type Respuesta } from './semaforo';
 
 const answers = z.array(z.enum(['cumple','no_cumple','no_aplica']).nullable());
@@ -43,13 +44,14 @@ export const saveRca=createServerFn({method:'POST'}).middleware([requireSupabase
   const {id,...fields}=data;const result=await context.supabase.from('rcas').update(fields).eq('id',id).select('id').single();check(result.error);return {ok:true};
 });
 
-export const assignAudit=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator(z.object({inst:z.string().uuid(),sup:z.string().uuid(),fecha:z.string().regex(/^\d{4}-\d{2}-\d{2}$/)})).handler(async({data,context})=>{
+export const assignAudit=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator(z.object({inst:z.string().uuid(),sup:z.string().uuid(),fecha:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),itemIds:z.array(z.string()).min(1).max(2000).optional()})).handler(async({data,context})=>{
   const role=await context.supabase.rpc('has_role',{_user_id:context.userId,_role:'admin'});if(!role.data)throw new Error('Solo administradores.');
   const r=await context.supabase.from('rcas').select('*').eq('instalacion_id',data.inst).maybeSingle();check(r.error);
   if(!r.data||!r.data.validados||r.data.estado==='Revocada')throw new Error('La instalación necesita su checklist confirmado (RCA vigente) antes de auditar.');
   const pe=await context.supabase.from('pertinencias').select('*').eq('rca_id',r.data.id);check(pe.error);
   const rca={id:r.data.id,validados:r.data.validados,estado:r.data.estado,items:items.parse(r.data.items)} as Rca;
-  const selected=checklistInstalacion(rca,(pe.data??[]).map(x=>({rcaId:x.rca_id,validados:x.validados,items:items.parse(x.items)}) as Pertinencia));if(!selected.length)throw new Error('El checklist está vacío.');
+  const completo=checklistInstalacion(rca,(pe.data??[]).map(x=>({rcaId:x.rca_id,validados:x.validados,items:items.parse(x.items)}) as Pertinencia));
+  const selected=filtrarSeleccion(completo,data.itemIds);if(data.itemIds&&selected.length!==new Set(data.itemIds).size)throw new Error('Algunos ítems elegidos ya no están en el checklist confirmado. Vuelve a elegirlos.');if(!selected.length)throw new Error('El checklist está vacío.');
   const a=await context.supabase.from('auditorias').insert({instalacion_id:data.inst,supervisor_id:data.sup,rca_ids:[r.data.id],fecha_limite:data.fecha,items:selected,respuestas:selected.map(()=>null)}).select('id').single();check(a.error);return {id:a.data?.id};
 });
 
