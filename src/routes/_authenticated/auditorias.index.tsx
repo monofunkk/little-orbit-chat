@@ -1,3 +1,4 @@
+import { snapshotOptions, useSnapshot, useAction } from "@/lib/audit-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronRight, Plus, X } from "lucide-react";
@@ -6,10 +7,11 @@ import { Button } from "@/components/arc/button/button";
 import { Badge } from "@/components/arc/badge/badge";
 import { Input } from "@/components/arc/input/input";
 import { SemaforoDot } from "@/components/semaforo-badge";
-import { auditorias as seed, instalaciones, instalacionPorId, rcas, supervisores, fmtFecha, estadoTone, type Auditoria } from "@/lib/mock-data";
+import { fmtFecha, estadoTone } from "@/lib/domain";
+import { assignAudit } from "@/lib/audit.functions";
 import { porcentajeCumplimiento } from "@/lib/semaforo";
 
-export const Route = createFileRoute("/auditorias/")({
+export const Route = createFileRoute("/_authenticated/auditorias/")({
   head: () => ({
     meta: [
       { title: "Auditorías — Invermar Audit" },
@@ -20,17 +22,19 @@ export const Route = createFileRoute("/auditorias/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(snapshotOptions),
   component: Auditorias,
 });
 
 
 function Auditorias() {
-  const { rol } = useRol();
-  const [lista, setLista] = useState<Auditoria[]>(seed);
+  const { rol, userId, auditorias:lista, instalaciones, rcas, supervisores } = useSnapshot();
+  const asignar=useAction((data:Parameters<typeof assignAudit>[0]["data"])=>assignAudit({data}));
+  const instalacionPorId=(id:string)=>instalaciones.find(i=>i.id===id);
   const [crear, setCrear] = useState(false);
-  const [f, setF] = useState({ inst: instalaciones[0]?.id ?? "", rcaIds: [] as string[], sup: supervisores[0] ?? "", fecha: "" });
-  const visibles = rol === "admin" ? lista : lista.filter((a) => a.supervisor === "Camila Soto");
-  const rcasInst = rcas.filter((r) => r.instalacionId === f.inst && r.estado !== "Revocada");
+  const [f, setF] = useState({ inst: instalaciones[0]?.id ?? "", rcaIds: [] as string[], sup: supervisores[0]?.id ?? "", fecha: "" });
+  const visibles = rol === "admin" ? lista : lista.filter((a) => a.supervisorId === userId);
+  const rcasInst = rcas.filter((r) => r.instalacionId === f.inst && r.estado !== "Revocada" && r.validados);
 
   return (
     <Page>
@@ -42,17 +46,17 @@ function Auditorias() {
 
       {crear && (
         <form
-          onSubmit={(e) => {
+          onSubmit={async(e) => {
             e.preventDefault();
             if (!f.rcaIds.length || !f.fecha) return;
-            setLista([{ id: crypto.randomUUID(), instalacionId: f.inst, supervisor: f.sup, rcaIds: f.rcaIds, estado: "Asignada", fechaLimite: f.fecha, respuestas: [] }, ...lista]);
+            await asignar.mutateAsync(f);
             setCrear(false);
           }}
           className="composer mb-8 flex flex-col gap-6 p-6"
         >
           <div className="flex items-center justify-between">
             <p className="font-medium">Nueva auditoría</p>
-            <button type="button" onClick={() => setCrear(false)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+            <Button variant="ghost" size="sm" type="button" onClick={() => setCrear(false)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></Button>
           </div>
           <Step n={1} label="Instalación">
             {instalaciones.map((i) => (
@@ -67,15 +71,16 @@ function Auditorias() {
             )) : <span className="text-sm text-muted-foreground">Esta instalación no tiene RCA vigentes.</span>}
           </Step>
           <Step n={3} label="Supervisor">
-            {supervisores.map((s) => <Chip key={s} on={f.sup === s} onClick={() => setF({ ...f, sup: s })}>{s}</Chip>)}
+            {supervisores.map((s) => <Chip key={s.id} on={f.sup === s.id} onClick={() => setF({ ...f, sup: s.id })}>{s.nombre}</Chip>)}
           </Step>
           <Step n={4} label="Fecha límite">
             <div className="w-56"><Input label="Fecha" type="date" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} /></div>
           </Step>
-          <div><Button type="submit" disabled={!f.rcaIds.length || !f.fecha}>Asignar auditoría</Button></div>
+          <div><Button type="submit" loading={asignar.isPending} disabled={!f.rcaIds.length || !f.fecha || !f.sup}>Asignar auditoría</Button></div>
         </form>
       )}
 
+      {!visibles.length && <p className="py-12 text-center text-muted-foreground">No hay auditorías asignadas.</p>}
       <div className="divide-y divide-border-subtle rounded-2xl border border-border-subtle">
         {visibles.map((a) => {
           const pct = porcentajeCumplimiento(a.respuestas);
@@ -85,7 +90,7 @@ function Auditorias() {
               <div className="flex items-center gap-3">
                 {evaluada ? <SemaforoDot pct={pct} /> : <span className="size-2 rounded-full bg-border-strong" />}
                 <div>
-                  <p className="text-sm font-medium">{instalacionPorId(a.instalacionId).nombre}</p>
+                  <p className="text-sm font-medium">{instalacionPorId(a.instalacionId)?.nombre}</p>
                   <p className="text-xs text-muted-foreground">{a.supervisor} · vence {fmtFecha(a.fechaLimite)}</p>
                 </div>
               </div>
@@ -114,8 +119,8 @@ function Step({ n, label, children }: { n: number; label: string; children: Reac
 
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${on ? "border-border-strong bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>
+    <Button variant="ghost" size="sm" type="button" onClick={onClick} className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${on ? "border-border-strong bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>
       {children}
-    </button>
+    </Button>
   );
 }

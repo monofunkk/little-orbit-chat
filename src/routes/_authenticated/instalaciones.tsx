@@ -1,3 +1,4 @@
+import { snapshotOptions, useSnapshot, useAction } from "@/lib/audit-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { MapPin, Plus, X } from "lucide-react";
@@ -5,9 +6,10 @@ import { Page, PageHeader } from "@/components/app-shell";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { SemaforoBadge } from "@/components/semaforo-badge";
-import { instalaciones as seed, type Instalacion, type TipoInstalacion } from "@/lib/mock-data";
+import { type TipoInstalacion } from "@/lib/domain";
+import { saveInstallation } from "@/lib/audit.functions";
 
-export const Route = createFileRoute("/instalaciones")({
+export const Route = createFileRoute("/_authenticated/instalaciones")({
   head: () => ({
     meta: [
       { title: "Instalaciones — Invermar Audit" },
@@ -18,13 +20,16 @@ export const Route = createFileRoute("/instalaciones")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(snapshotOptions),
   component: Instalaciones,
 });
 
 const tipos = ["Centro de cultivo", "Planta de proceso", "Bodega", "Oficina"] as const satisfies readonly TipoInstalacion[];
 
 function Instalaciones() {
-  const [lista, setLista] = useState<Instalacion[]>(seed);
+  const { instalaciones:lista,rol } = useSnapshot();
+  const guardar=useAction((data:Parameters<typeof saveInstallation>[0]["data"])=>saveInstallation({data}));
+  if(rol!=="admin") return <Page><p>Acceso restringido.</p></Page>;
   const [nueva, setNueva] = useState(false);
   const [form, setForm] = useState<{ nombre: string; ubicacion: string; tipo: TipoInstalacion }>({ nombre: "", ubicacion: "", tipo: tipos[0] });
 
@@ -42,10 +47,10 @@ function Instalaciones() {
 
       {nueva && (
         <form
-          onSubmit={(e) => {
+          onSubmit={async(e) => {
             e.preventDefault();
             if (!form.nombre) return;
-            setLista([{ id: crypto.randomUUID(), ...form, rcas: 0, ultimoPct: null }, ...lista]);
+            await guardar.mutateAsync(form);
             setForm({ nombre: "", ubicacion: "", tipo: tipos[0] });
             setNueva(false);
           }}
@@ -53,9 +58,9 @@ function Instalaciones() {
         >
           <div className="flex items-center justify-between md:col-span-2">
             <p className="font-medium">Nueva instalación</p>
-            <button type="button" onClick={() => setNueva(false)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="sm" type="button" onClick={() => setNueva(false)} aria-label="Cerrar" className="text-muted-foreground hover:text-foreground">
               <X className="size-4" />
-            </button>
+            </Button>
           </div>
           <Input label="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Centro Quellón" />
           <Input label="Ubicación" value={form.ubicacion} onChange={(e) => setForm({ ...form, ubicacion: e.target.value })} placeholder="Comuna, región" />
@@ -63,23 +68,24 @@ function Instalaciones() {
             <p className="mb-2 text-sm text-secondary-foreground">Tipo</p>
             <div className="flex flex-wrap gap-2">
               {tipos.map((t) => (
-                <button
+                <Button variant="ghost" size="sm"
                   type="button"
                   key={t}
                   onClick={() => setForm({ ...form, tipo: t })}
                   className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${form.tipo === t ? "border-border-strong bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
                 >
                   {t}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
           <div className="md:col-span-2">
-            <Button type="submit">Guardar</Button>
+            <Button type="submit" loading={guardar.isPending}>Guardar</Button>
           </div>
         </form>
       )}
 
+      {!lista.length && <p className="py-12 text-center text-muted-foreground">Aún no hay instalaciones.</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         {lista.map((i) => (
           <div key={i.id} className="rounded-2xl border border-border-subtle bg-surface p-5 transition-colors hover:border-border">

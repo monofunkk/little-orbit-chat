@@ -14,16 +14,235 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      auditorias: {
+        Row: {
+          comentario_admin: string
+          created_at: string
+          estado: string
+          fecha_limite: string
+          general: string
+          id: string
+          instalacion_id: string
+          items: Json
+          observaciones: Json
+          rca_ids: string[]
+          respuestas: Json
+          reviewed_at: string | null
+          submitted_at: string | null
+          supervisor_id: string
+        }
+        Insert: {
+          comentario_admin?: string
+          created_at?: string
+          estado?: string
+          fecha_limite: string
+          general?: string
+          id?: string
+          instalacion_id: string
+          items: Json
+          observaciones?: Json
+          rca_ids: string[]
+          respuestas?: Json
+          reviewed_at?: string | null
+          submitted_at?: string | null
+          supervisor_id: string
+        }
+        Update: {
+          comentario_admin?: string
+          created_at?: string
+          estado?: string
+          fecha_limite?: string
+          general?: string
+          id?: string
+          instalacion_id?: string
+          items?: Json
+          observaciones?: Json
+          rca_ids?: string[]
+          respuestas?: Json
+          reviewed_at?: string | null
+          submitted_at?: string | null
+          supervisor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditorias_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditorias_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidencias: {
+        Row: {
+          archivo_path: string
+          auditoria_id: string
+          created_at: string
+          id: string
+          item_id: string
+          mime: string
+          nombre: string
+          uploaded_by: string
+        }
+        Insert: {
+          archivo_path: string
+          auditoria_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          mime: string
+          nombre: string
+          uploaded_by: string
+        }
+        Update: {
+          archivo_path?: string
+          auditoria_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          mime?: string
+          nombre?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidencias_auditoria_id_fkey"
+            columns: ["auditoria_id"]
+            isOneToOne: false
+            referencedRelation: "auditorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instalaciones: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          tipo: string
+          ubicacion: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre: string
+          tipo: string
+          ubicacion?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          tipo?: string
+          ubicacion?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          nombre?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
+      rcas: {
+        Row: {
+          archivo_path: string
+          created_at: string
+          estado: string
+          fecha: string
+          id: string
+          instalacion_id: string
+          items: Json
+          nombre: string
+          numero: string
+          validados: boolean
+        }
+        Insert: {
+          archivo_path: string
+          created_at?: string
+          estado?: string
+          fecha?: string
+          id?: string
+          instalacion_id: string
+          items?: Json
+          nombre: string
+          numero?: string
+          validados?: boolean
+        }
+        Update: {
+          archivo_path?: string
+          created_at?: string
+          estado?: string
+          fecha?: string
+          id?: string
+          instalacion_id?: string
+          items?: Json
+          nombre?: string
+          numero?: string
+          validados?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rcas_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "instalaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "supervisor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +369,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "supervisor"],
+    },
   },
 } as const

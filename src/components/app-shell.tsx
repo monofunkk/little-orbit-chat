@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useState, type ReactNode } from "react";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   Building2,
   ClipboardCheck,
@@ -8,13 +8,17 @@ import {
   Inbox,
   FileDown,
   Leaf,
+  LogOut,
+  Users,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
 
-export type Rol = "admin" | "supervisor";
-const RolCtx = createContext<{ rol: Rol; setRol: (r: Rol) => void }>({ rol: "admin", setRol: () => {} });
-export const useRol = () => useContext(RolCtx);
+import { Button } from '@/components/arc/button/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { useSnapshot } from '@/lib/audit-query';
+export const useRol = () => ({ rol: useSnapshot().rol });
 
 const navAdmin = [
   { to: "/", label: "Inicio", icon: Home },
@@ -23,6 +27,7 @@ const navAdmin = [
   { to: "/auditorias", label: "Auditorías", icon: ClipboardCheck },
   { to: "/revision", label: "Revisión", icon: Inbox },
   { to: "/reportes", label: "Reportes", icon: FileDown },
+  { to: "/usuarios", label: "Equipo", icon: Users },
 ] as const;
 
 const navSupervisor = [
@@ -31,13 +36,13 @@ const navSupervisor = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const [rol, setRol] = useState<Rol>("admin");
+  const { rol } = useSnapshot();
   const [open, setOpen] = useState(true);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const nav = rol === "admin" ? navAdmin : navSupervisor;
 
   return (
-    <RolCtx.Provider value={{ rol, setRol }}>
+    <>
       <div className="flex min-h-screen bg-background text-foreground">
         <aside
           className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border-subtle px-3 py-4 transition-[width] duration-300 md:flex ${open ? "w-60" : "w-16"}`}
@@ -50,15 +55,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               {open && <span className="text-sm font-semibold tracking-tight">Invermar Audit</span>}
             </Link>
             {open && (
-              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Contraer menú">
+              <Button variant="ghost" size="sm" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Contraer menú">
                 <PanelLeftClose className="size-4" />
-              </button>
+              </Button>
             )}
           </div>
           {!open && (
-            <button onClick={() => setOpen(true)} className="mb-4 grid place-items-center text-muted-foreground hover:text-foreground" aria-label="Expandir menú">
+            <Button variant="ghost" size="sm" onClick={() => setOpen(true)} className="mb-4 grid place-items-center text-muted-foreground hover:text-foreground" aria-label="Expandir menú">
               <PanelLeftOpen className="size-4" />
-            </button>
+            </Button>
           )}
           <nav className="flex flex-1 flex-col gap-0.5">
             {nav.map(({ to, label, icon: Icon }) => {
@@ -96,38 +101,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </div>
-    </RolCtx.Provider>
+    </>
   );
 }
 
 function RolSwitch({ compact }: { compact?: boolean }) {
-  const { rol, setRol } = useRol();
-  if (compact)
-    return (
-      <button
-        onClick={() => setRol(rol === "admin" ? "supervisor" : "admin")}
-        className="grid size-8 place-items-center rounded-full bg-muted text-xs font-medium"
-        title={`Cambiar a ${rol === "admin" ? "Supervisor" : "Administrador"}`}
-      >
-        {rol === "admin" ? "AD" : "SU"}
-      </button>
-    );
-  return (
-    <div className="rounded-2xl bg-surface p-1 ring-1 ring-border-subtle">
-      <p className="px-2 pb-1 pt-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">Ver como</p>
-      <div className="grid grid-cols-2 gap-1">
-        {(["admin", "supervisor"] as const).map((r) => (
-          <button
-            key={r}
-            onClick={() => setRol(r)}
-            className={`rounded-xl px-2 py-1.5 text-xs transition-colors ${rol === r ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            {r === "admin" ? "Admin" : "Supervisor"}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  const { nombre,rol } = useSnapshot();
+  const client=useQueryClient(); const navigate=useNavigate();
+  return <div className="flex items-center justify-between gap-2 px-2">{!compact&&<div className="min-w-0"><p className="truncate text-sm">{nombre}</p><p className="text-xs text-muted-foreground">{rol==='admin'?'Administrador':'Supervisor'}</p></div>}<Button variant="ghost" size="sm" title="Cerrar sesión" aria-label="Cerrar sesión" onClick={async()=>{await client.cancelQueries();client.clear();await supabase.auth.signOut();await navigate({to:'/auth',replace:true});}}><LogOut className="size-4"/></Button></div>;
 }
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
