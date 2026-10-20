@@ -117,3 +117,8 @@
     animation: none;
   }
 }
+
+/* Logo Audyt: versión oscura en tema claro y clara en tema oscuro */
+.logo-audyt-claro { display: none; }
+:root[data-theme="dark"] .logo-audyt-claro { display: inline-block; }
+:root[data-theme="dark"] .logo-audyt-oscuro { display: none; }

@@ -7,7 +7,6 @@ import {
   Home,
   Inbox,
   FileDown,
-  Leaf,
   LogOut,
   Users,
   PanelLeftClose,
@@ -35,6 +34,15 @@ const navSupervisor = [
   { to: "/auditorias", label: "Mis auditorías", icon: ClipboardCheck },
 ] as const;
 
+function Logo({ className }: { className?: string }) {
+  return (
+    <>
+      <img src="/logo-audyt-oscuro.png" alt="Audyt" className={`logo-audyt-oscuro ${className ?? ""}`} />
+      <img src="/logo-audyt.png" alt="Audyt" className={`logo-audyt-claro ${className ?? ""}`} />
+    </>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { rol } = useSnapshot();
   const [open, setOpen] = useState(true);
@@ -49,10 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <div className="mb-6 flex items-center justify-between px-2">
             <Link to="/" className="flex items-center gap-2">
-              <span className="grid size-8 place-items-center rounded-xl bg-muted">
-                <Leaf className="size-4" />
-              </span>
-              {open && <span className="text-sm font-semibold tracking-tight">Invermar Audit</span>}
+              {open ? <Logo className="h-7 w-auto" /> : <img src="/favicon.png" alt="Audyt" className="size-8" />}
             </Link>
             {open && (
               <Button variant="ghost" size="sm" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Contraer menú">
@@ -87,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between border-b border-border-subtle px-4 py-3 md:hidden">
             <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
-              <Leaf className="size-4" /> Invermar Audit
+              <Logo className="h-6 w-auto" />
             </Link>
             <RolSwitch compact />
           </header>
