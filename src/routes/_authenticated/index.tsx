@@ -1,10 +1,8 @@
-import { snapshotOptions, useSnapshot, useAction } from "@/lib/audit-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowUp, Building2, ClipboardCheck, FileUp, Inbox } from "lucide-react";
-import { useRol } from "@/components/app-shell";
+import { snapshotOptions, useSnapshot } from "@/lib/audit-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Building2, ClipboardCheck, FileUp, Inbox } from "lucide-react";
 import { fmtFecha } from "@/lib/domain";
-import { Button } from "@/components/arc/button/button";
+import { ChatOrbit } from "@/components/chat-orbit";
 import { porcentajeCumplimiento } from "@/lib/semaforo";
 import { SemaforoDot } from "@/components/semaforo-badge";
 
@@ -33,21 +31,10 @@ const sugerenciasAdmin = [
 function Index() {
   const { rol, nombre, userId, auditorias, instalaciones } = useSnapshot();
   const instalacionPorId = (id:string) => instalaciones.find(i=>i.id===id);
-  const navigate = useNavigate();
-  const [q, setQ] = useState("");
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
   const mias = auditorias.filter((a) => a.supervisorId === userId && ["Asignada", "En progreso", "Rechazada"].includes(a.estado));
   const enRevision = auditorias.filter((a) => a.estado === "En revisión");
-
-  const go = () => {
-    const t = q.toLowerCase();
-    if (t.includes("rca") || t.includes("subir")) navigate({ to: "/rca" });
-    else if (t.includes("revis")) navigate({ to: "/revision" });
-    else if (t.includes("instal")) navigate({ to: "/instalaciones" });
-    else if (t.includes("report")) navigate({ to: "/reportes" });
-    else navigate({ to: "/auditorias" });
-  };
 
   return (
     <div className="glow-top relative flex min-h-[calc(100vh-4rem)] flex-col items-center px-5 md:min-h-screen">
@@ -63,31 +50,19 @@ function Index() {
 
         {rol === "admin" ? (
           <>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                go();
-              }}
-              className="composer flex items-center gap-2 p-2 pl-5"
-            >
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Ej: revisar auditorías pendientes, subir RCA…"
-                className="h-12 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
-              />
-              <Button type="submit" aria-label="Ir" className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95">
-                <ArrowUp className="size-4" />
-              </Button>
-            </form>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {sugerenciasAdmin.map(({ label, to, icon: Icon }) => (
-                <Link key={to} to={to} className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-sm text-secondary-foreground transition-colors hover:bg-muted hover:text-foreground">
-                  <Icon className="size-3.5" /> {label}
-                </Link>
-              ))}
-            </div>
-
+            <ChatOrbit
+              placeholder="Pregúntale a Orbit: ¿qué le falta a la piscicultura para su auditoría?"
+              sugerencias={["¿Cómo va el cumplimiento?", "¿Qué auditorías están vencidas?", "¿Qué normativa aplica a un centro?"]}
+              vacio={
+                <div className="flex flex-wrap justify-center gap-2">
+                  {sugerenciasAdmin.map(({ label, to, icon: Icon }) => (
+                    <Link key={to} to={to} className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                      <Icon className="size-3.5" /> {label}
+                    </Link>
+                  ))}
+                </div>
+              }
+            />
             <div className="mt-14 grid grid-cols-3 gap-3 text-center">
               <Stat n={enRevision.length} label="Por revisar" />
               <Stat n={auditorias.filter((a) => ["Asignada", "En progreso"].includes(a.estado)).length} label="En terreno" />
@@ -96,6 +71,9 @@ function Index() {
           </>
         ) : (
           <div className="flex flex-col gap-2">
+            <div className="mb-6">
+              <ChatOrbit placeholder="Pregúntale a Orbit sobre tus auditorías" sugerencias={["¿Qué me falta por completar?", "¿Qué incumplimientos tengo?"]} />
+            </div>
             {mias.map((a) => {
               const inst = instalacionPorId(a.instalacionId);
               const hechos = a.respuestas.filter(Boolean).length;

@@ -163,6 +163,60 @@ export type Database = {
         }
         Relationships: []
       }
+      pertinencias: {
+        Row: {
+          archivo_path: string
+          created_at: string
+          fecha: string
+          id: string
+          instalacion_id: string
+          items: Json
+          nombre: string
+          numero: string
+          rca_id: string
+          validados: boolean
+        }
+        Insert: {
+          archivo_path: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          instalacion_id: string
+          items?: Json
+          nombre: string
+          numero?: string
+          rca_id: string
+          validados?: boolean
+        }
+        Update: {
+          archivo_path?: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          instalacion_id?: string
+          items?: Json
+          nombre?: string
+          numero?: string
+          rca_id?: string
+          validados?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pertinencias_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pertinencias_rca_id_fkey"
+            columns: ["rca_id"]
+            isOneToOne: false
+            referencedRelation: "rcas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rcas: {
         Row: {
           archivo_path: string
@@ -204,7 +258,7 @@ export type Database = {
           {
             foreignKeyName: "rcas_instalacion_id_fkey"
             columns: ["instalacion_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "instalaciones"
             referencedColumns: ["id"]
           },

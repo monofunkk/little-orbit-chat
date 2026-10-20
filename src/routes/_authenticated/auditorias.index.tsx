@@ -7,7 +7,7 @@ import { Button } from "@/components/arc/button/button";
 import { Badge } from "@/components/arc/badge/badge";
 import { Input } from "@/components/arc/input/input";
 import { SemaforoDot } from "@/components/semaforo-badge";
-import { fmtFecha, estadoTone } from "@/lib/domain";
+import { fmtFecha, estadoTone, checklistInstalacion } from "@/lib/domain";
 import { assignAudit } from "@/lib/audit.functions";
 import { porcentajeCumplimiento } from "@/lib/semaforo";
 
@@ -28,19 +28,21 @@ export const Route = createFileRoute("/_authenticated/auditorias/")({
 
 
 function Auditorias() {
-  const { rol, userId, auditorias:lista, instalaciones, rcas, supervisores } = useSnapshot();
+  const { rol, userId, auditorias:lista, instalaciones, rcas, pertinencias, supervisores } = useSnapshot();
   const asignar=useAction((data:Parameters<typeof assignAudit>[0]["data"])=>assignAudit({data}));
   const instalacionPorId=(id:string)=>instalaciones.find(i=>i.id===id);
   const [crear, setCrear] = useState(false);
-  const [f, setF] = useState({ inst: instalaciones[0]?.id ?? "", rcaIds: [] as string[], sup: supervisores[0]?.id ?? "", fecha: "" });
+  const [f, setF] = useState({ inst: instalaciones[0]?.id ?? "", sup: supervisores[0]?.id ?? "", fecha: "" });
   const visibles = rol === "admin" ? lista : lista.filter((a) => a.supervisorId === userId);
-  const rcasInst = rcas.filter((r) => r.instalacionId === f.inst && r.estado !== "Revocada" && r.validados);
+  const rcaInst = rcas.find((r) => r.instalacionId === f.inst);
+  const checklist = checklistInstalacion(rcaInst, pertinencias);
+  const pertInst = pertinencias.filter((p) => p.rcaId === rcaInst?.id && p.validados).length;
 
   return (
     <Page>
       <PageHeader
         title={rol === "admin" ? "Auditorías" : "Mis auditorías"}
-        subtitle={rol === "admin" ? "Asigna una auditoría en cuatro pasos." : "Abre una auditoría para completar el checklist."}
+        subtitle={rol === "admin" ? "Elige la instalación, el supervisor y la fecha: el checklist sale de su RCA, la normativa y sus pertinencias." : "Abre una auditoría para completar el checklist."}
         action={rol === "admin" && <Button onClick={() => setCrear(true)}><Plus className="size-4" /> Nueva auditoría</Button>}
       />
 
@@ -48,7 +50,7 @@ function Auditorias() {
         <form
           onSubmit={async(e) => {
             e.preventDefault();
-            if (!f.rcaIds.length || !f.fecha) return;
+            if (!checklist.length || !f.fecha) return;
             await asignar.mutateAsync(f);
             setCrear(false);
           }}
@@ -60,15 +62,21 @@ function Auditorias() {
           </div>
           <Step n={1} label="Instalación">
             {instalaciones.map((i) => (
-              <Chip key={i.id} on={f.inst === i.id} onClick={() => setF({ ...f, inst: i.id, rcaIds: [] })}>{i.nombre}</Chip>
+              <Chip key={i.id} on={f.inst === i.id} onClick={() => setF({ ...f, inst: i.id })}>{i.nombre}</Chip>
             ))}
           </Step>
-          <Step n={2} label="RCA a auditar">
-            {rcasInst.length ? rcasInst.map((r) => (
-              <Chip key={r.id} on={f.rcaIds.includes(r.id)} onClick={() => setF({ ...f, rcaIds: f.rcaIds.includes(r.id) ? f.rcaIds.filter((x) => x !== r.id) : [...f.rcaIds, r.id] })}>
-                {r.numero}
-              </Chip>
-            )) : <span className="text-sm text-muted-foreground">Esta instalación no tiene RCA vigentes.</span>}
+          <Step n={2} label="Checklist">
+            {checklist.length ? (
+              <span className="text-sm text-secondary-foreground">
+                {checklist.length} ítems: RCA {rcaInst?.numero || rcaInst?.nombre}
+                {pertInst ? ` + ${pertInst} pertinencia${pertInst > 1 ? "s" : ""}` : ""}, con la normativa del tipo
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                {rcaInst ? (rcaInst.estado === "Revocada" ? "La RCA de esta instalación está revocada." : "Confirma el checklist en RCA y checklist antes de auditar.") : "Esta instalación aún no tiene RCA ni checklist."}{" "}
+                <Link to="/rca" className="underline">Ir a RCA y checklist</Link>
+              </span>
+            )}
           </Step>
           <Step n={3} label="Supervisor">
             {supervisores.map((s) => <Chip key={s.id} on={f.sup === s.id} onClick={() => setF({ ...f, sup: s.id })}>{s.nombre}</Chip>)}
@@ -76,7 +84,7 @@ function Auditorias() {
           <Step n={4} label="Fecha límite">
             <div className="w-56"><Input label="Fecha" type="date" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} /></div>
           </Step>
-          <div><Button type="submit" loading={asignar.isPending} disabled={!f.rcaIds.length || !f.fecha || !f.sup}>Asignar auditoría</Button></div>
+          <div><Button type="submit" loading={asignar.isPending} disabled={!checklist.length || !f.fecha || !f.sup}>Asignar auditoría</Button></div>
         </form>
       )}
 
@@ -119,8 +127,8 @@ function Step({ n, label, children }: { n: number; label: string; children: Reac
 
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <Button variant="ghost" size="sm" type="button" onClick={onClick} className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${on ? "border-border-strong bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>
+    <button type="button" aria-pressed={on} onClick={onClick} className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${on ? "border-foreground bg-muted text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}>
       {children}
-    </Button>
+    </button>
   );
 }

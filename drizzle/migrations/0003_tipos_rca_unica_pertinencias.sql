@@ -1,0 +1,10 @@
+UPDATE public.instalaciones SET tipo = CASE tipo WHEN 'Centro de cultivo' THEN 'centro' WHEN 'Planta de proceso' THEN 'planta_proceso' WHEN 'Bodega' THEN 'empresa' WHEN 'Oficina' THEN 'empresa' ELSE tipo END;
+UPDATE public.instalaciones SET tipo = 'piscicultura' WHERE tipo NOT IN ('piscicultura','centro','planta_proceso','empresa');
+ALTER TABLE public.instalaciones ADD CONSTRAINT instalaciones_tipo_check CHECK (tipo IN ('piscicultura','centro','planta_proceso','empresa'));
+CREATE UNIQUE INDEX rcas_una_por_instalacion ON public.rcas(instalacion_id);
+CREATE TABLE public.pertinencias (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), rca_id uuid NOT NULL REFERENCES public.rcas(id) ON DELETE CASCADE, instalacion_id uuid NOT NULL REFERENCES public.instalaciones(id), numero text NOT NULL DEFAULT '', nombre text NOT NULL, fecha date NOT NULL DEFAULT CURRENT_DATE, archivo_path text NOT NULL, items jsonb NOT NULL DEFAULT '[]', validados boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT,INSERT,UPDATE,DELETE ON public.pertinencias TO authenticated; GRANT ALL ON public.pertinencias TO service_role; ALTER TABLE public.pertinencias ENABLE ROW LEVEL SECURITY;
+CREATE INDEX pertinencias_rca ON public.pertinencias(rca_id);
+CREATE POLICY pertinencia_read ON public.pertinencias FOR SELECT TO authenticated USING(public.has_role(auth.uid(),'admin') OR EXISTS(SELECT 1 FROM public.auditorias a WHERE pertinencias.rca_id=ANY(a.rca_ids) AND a.supervisor_id=auth.uid()));
+CREATE POLICY pertinencia_manage ON public.pertinencias FOR ALL TO authenticated USING(public.has_role(auth.uid(),'admin')) WITH CHECK(public.has_role(auth.uid(),'admin'));
+CREATE POLICY pertinencia_files_read ON storage.objects FOR SELECT TO authenticated USING(bucket_id='rca-documents' AND EXISTS(SELECT 1 FROM public.pertinencias p JOIN public.auditorias a ON p.rca_id=ANY(a.rca_ids) WHERE p.archivo_path=name AND a.supervisor_id=auth.uid()));
