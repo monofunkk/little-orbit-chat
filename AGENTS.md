@@ -10,4 +10,5 @@
 <!-- LOVABLE:END -->
 
 - UI components come from the Arc registry (uiarc.dev), copied into src/components/arc; prefer them over src/components/ui. Why: user-chosen component library.
+- Keep the copied Arc registry files passing the project's strict typecheck by adapting the files themselves (bracket access on CSS-module styles, conditional spreads instead of passing undefined to motion props), never by relaxing tsconfig flags. Why: those flags are the template's and catch real bugs in app code.
 - Frontend-only for now: all data is mock in src/lib/mock-data.ts; compliance rules live in src/lib/semaforo.ts (tested). Why: backend comes later.
