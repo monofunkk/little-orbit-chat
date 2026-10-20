@@ -12,7 +12,7 @@ export const MODELOS = ['deepseek-v4.1-flash', 'glm-5.3'] as const;
 export type ModeloOrbit = (typeof MODELOS)[number];
 const nombreModelo: Record<ModeloOrbit, string> = { 'deepseek-v4.1-flash': 'DeepSeek 4.1 Flash', 'glm-5.3': 'GLM 5.3' };
 
-interface Opciones { tools?: OrbitTool[]; temperature?: number; timeoutMs?: number; modelos?: readonly ModeloOrbit[] }
+interface Opciones { tools?: OrbitTool[]; temperature?: number; timeoutMs?: number; modelos?: readonly ModeloOrbit[]; /** Tiempo total máximo de la llamada con reintentos; al agotarse no se prueban más modelos. */ presupuestoMs?: number }
 
 async function llamarModelo(modelo: ModeloOrbit, messages: OrbitMessage[], opts: Opciones) {
   const key = process.env['ORBIT_API_KEY'];
@@ -43,14 +43,22 @@ async function llamarModelo(modelo: ModeloOrbit, messages: OrbitMessage[], opts:
 /** Prueba cada modelo en orden y devuelve la primera respuesta que pase `validar` (si se entrega). */
 async function conRespaldo<T>(messages: OrbitMessage[], opts: Opciones, validar: (r: Awaited<ReturnType<typeof llamarModelo>>) => T) {
   const errores: string[] = [];
+  const inicio = Date.now();
+  const queda = () => (opts.presupuestoMs ?? Infinity) - (Date.now() - inicio);
   for (const modelo of opts.modelos ?? MODELOS) {
-    try {
-      const r = await llamarModelo(modelo, messages, opts);
-      return { ...r, valor: validar(r) };
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.warn(`[orbit] ${modelo} falló: ${msg}`);
-      errores.push(msg);
+    // Un corte del gateway (502/503/504) suele ser pasajero: se reintenta una vez el mismo modelo.
+    for (let intento = 0; intento < 2; intento++) {
+      if (queda() < 15000) { errores.push('Se agotó el tiempo para esta parte.'); break; }
+      try {
+        const r = await llamarModelo(modelo, messages, { ...opts, timeoutMs: Math.min(opts.timeoutMs ?? 180000, queda()) });
+        return { ...r, valor: validar(r) };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn(`[orbit] ${modelo} falló (intento ${intento + 1}): ${msg}`);
+        if (intento === 0 && /\((502|503|504)\)/.test(msg)) { await new Promise((ok) => setTimeout(ok, 1500)); continue; }
+        errores.push(msg);
+        break;
+      }
     }
   }
   throw new Error(errores.length > 1 ? `Orbit no pudo responder con ningún modelo. ${errores.join(' ')} Vuelve a intentarlo en unos minutos.` : `${errores[0] ?? 'Orbit no respondió.'} Vuelve a intentarlo.`);

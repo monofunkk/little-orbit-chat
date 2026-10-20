@@ -332,6 +332,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      buscar_en_documento: {
+        Args: { consulta: string; doc: string; limite?: number }
+        Returns: { contenido: string; pagina: number; rango: number }[]
+      }
       buscar_fragmentos: {
         Args: { consulta: string; inst?: string; limite?: number }
         Returns: {

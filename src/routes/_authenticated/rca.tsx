@@ -7,8 +7,8 @@ import {Input} from '@/components/arc/input/input';
 import {Badge} from '@/components/arc/badge/badge';
 import {snapshotOptions,useSnapshot,useAction} from '@/lib/audit-query';
 import {saveRca,savePertinencia,createChecklistNormativo,getFileUrl} from '@/lib/audit.functions';
-import {extractRca,extractPertinencia} from '@/lib/orbit.functions';
-import {readPdf} from '@/lib/documents';
+import {leerPdf,procesarDocumento,type Progreso} from '@/lib/extraccion';
+import {Progress} from '@/components/arc/progress/progress';
 import {indexarDocumento} from '@/lib/documentos.functions';
 import {supabase} from '@/integrations/supabase/client';
 import {type Rca,type Pertinencia,type ChecklistItem,type Origen,fmtFecha,tipoLabel,origenLabel,checklistInstalacion} from '@/lib/domain';
@@ -36,34 +36,41 @@ const data=useSnapshot();
  const guardarRca=useAction((input:Parameters<typeof saveRca>[0]['data'])=>saveRca({data:input}));
  const guardarPert=useAction((input:Parameters<typeof savePertinencia>[0]['data'])=>savePertinencia({data:input}));
  const soloNormativa=useAction((inst:string)=>createChecklistNormativo({data:{inst}}));
- const trabajar=async(msg:string,fn:()=>Promise<void>)=>{setBusy(true);setStatus(msg);try{await fn();}catch(e){toast.error(e instanceof Error?e.message:'No se pudo completar.');}finally{setBusy(false);setStatus('');}};
+ const [progreso,setProgreso]=useState<Progreso|null>(null);
+ const trabajar=async(msg:string,fn:()=>Promise<void>)=>{setBusy(true);setStatus(msg);setProgreso(null);try{await fn();}catch(e){toast.error(e instanceof Error?e.message:'No se pudo completar.');}finally{setBusy(false);setStatus('');setProgreso(null);}};
  const subirArchivo=async(file:File,carpeta:string)=>{const path=`${instId}/${carpeta}${crypto.randomUUID()}.pdf`;const up=await supabase.storage.from('rca-documents').upload(path,file,{contentType:'application/pdf'});if(up.error)throw up.error;return path;};
+ const descargar=async(path:string,nombre:string)=>{const d=await supabase.storage.from('rca-documents').download(path);if(d.error)throw d.error;return new File([d.data],nombre+'.pdf',{type:'application/pdf'});};
+ /** Lee el PDF, lo procesa por secciones y abre el editor para validar. */
+ const procesar=async(tipo:'rca'|'pertinencia',doc:Rca|Pertinencia,file:File)=>{
+  if(!inst)throw new Error('Selecciona una instalación.');
+  const pages=await leerPdf(file,setProgreso);
+  try{
+   const x=await procesarDocumento({tipo,id:doc.id,instalacionId:inst.id,tipoInstalacion:inst.tipo,nombre:doc.numero||doc.nombre,pages,onProgreso:setProgreso});
+   const vacio={...doc,items:x.items,validados:false};
+   setEdit(tipo==='rca'?{kind:'rca',doc:vacio as Rca}:{kind:'pertinencia',doc:vacio as Pertinencia});
+   const v=x.verificacion;
+   if(tipo==='rca')toast.success(`Checklist listo: ${x.deRca} compromisos leídos de la RCA. Normativa: ${v.cubierta} ya en la RCA, ${v.no_aparece} agregadas${v.sin_verificar?`, ${v.sin_verificar} sin verificar`:''}.`);
+   else toast.success(x.items.length?`La pertinencia propone ${x.items.length} compromisos.`:'La pertinencia no agrega compromisos nuevos.');
+   if(x.fallidas.length)toast.warning(`Orbit no pudo leer ${x.fallidas.join(', ')}. El resto quedó guardado; vuelve a procesar para completarlo.`,{duration:12000});
+   if(x.noIndexado)toast.message('El documento no quedó indexado para el chat. Usa "Actualizar índice".');
+  }catch(e){setEdit(tipo==='rca'?{kind:'rca',doc:doc as Rca}:{kind:'pertinencia',doc:doc as Pertinencia});throw e;}
+  finally{await snapshotRefresh();}
+ };
 
  const cargarRca=(file:File)=>trabajar('Leyendo la RCA…',async()=>{
-  if(!inst)throw new Error('Crea una instalación antes de cargar la RCA.');if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');if(rca)throw new Error('Esta instalación ya tiene su RCA. Adjunta los cambios como pertinencia.');
-  const leido=await readPdf(file);const text=leido.text;const path=await subirArchivo(file,'');
+  if(!inst)throw new Error('Crea una instalación antes de cargar la RCA.');if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');if(rca)throw new Error('Esta instalación ya tiene su RCA. Usa "Reemplazar PDF" o adjunta los cambios como pertinencia.');
+  const path=await subirArchivo(file,'');
   const r=await supabase.from('rcas').insert({instalacion_id:instId,nombre:file.name.replace(/\.pdf$/i,''),archivo_path:path}).select('*').single();
   if(r.error){await supabase.storage.from('rca-documents').remove([path]);throw new Error(r.error.code==='23505'?'Esta instalación ya tiene su RCA.':r.error.message);}
-  const draft:Rca={id:r.data.id,instalacionId:instId,nombre:r.data.nombre,numero:'',fecha:r.data.fecha,estado:'Vigente',archivoPath:path,items:[],validados:false};
-  await indexar('rca',draft.id,draft.nombre,leido.pages);
-  setStatus(`Orbit está cruzando la RCA con la normativa de ${tipoLabel[inst.tipo].toLowerCase()}…`);
-  try{const x=await extractRca({data:{id:draft.id,text}});setEdit({kind:'rca',doc:{...draft,items:x.items}});toast.success(`Checklist listo: ${x.deRca} compromisos de la RCA y ${x.normativos} obligaciones normativas.`);}
-  catch(e){setEdit({kind:'rca',doc:draft});throw e;}
-  finally{await snapshotRefresh();}
+  await procesar('rca',{id:r.data.id,instalacionId:instId,nombre:r.data.nombre,numero:'',fecha:r.data.fecha,estado:'Vigente',archivoPath:path,items:[],validados:false},file);
  });
  const reemplazarRca=(r:Rca,file:File)=>trabajar('Leyendo el nuevo PDF…',async()=>{
-  if(!inst)return;if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');
-  const leido=await readPdf(file);const path=await subirArchivo(file,'');
-  const nombre=file.name.replace(/\.pdf$/i,'');
+  if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');
+  const path=await subirArchivo(file,'');const nombre=file.name.replace(/\.pdf$/i,'');
   const u=await supabase.from('rcas').update({archivo_path:path,nombre,numero:'',items:[],validados:false}).eq('id',r.id).select('*').single();
   if(u.error){await supabase.storage.from('rca-documents').remove([path]);throw u.error;}
   if(r.archivoPath)await supabase.storage.from('rca-documents').remove([r.archivoPath]);
-  const draft:Rca={...r,archivoPath:path,nombre,numero:'',items:[],validados:false};
-  await indexar('rca',r.id,nombre,leido.pages);
-  setStatus(`Orbit está cruzando la RCA con la normativa de ${tipoLabel[inst.tipo].toLowerCase()}…`);
-  try{const x=await extractRca({data:{id:r.id,text:leido.text}});setEdit({kind:'rca',doc:{...draft,items:x.items}});toast.success(`PDF reemplazado. Checklist listo: ${x.deRca} compromisos de la RCA y ${x.normativos} obligaciones normativas.`);}
-  catch(e){setEdit({kind:'rca',doc:draft});throw e;}
-  finally{await snapshotRefresh();}
+  await procesar('rca',{...r,archivoPath:path,nombre,numero:'',items:[],validados:false},file);
  });
  const eliminarRca=(r:Rca)=>trabajar('Eliminando la RCA…',async()=>{
   await supabase.from('documento_fragmentos').delete().in('documento_id',[r.id,...perts.map(p=>p.id)]);
@@ -74,31 +81,28 @@ const data=useSnapshot();
  });
  const confirmarReemplazo=()=>{if(!rca)return;const aviso=rca.validados?'\n\nEl checklist confirmado se reemplazará por uno nuevo que tendrás que validar.':'';if(window.confirm(`¿Reemplazar el PDF de la RCA?${aviso}\n\nLas pertinencias adjuntas se mantienen. Las auditorías ya asignadas no cambian.`))reemplazoRef.current?.click();};
  const confirmarEliminar=()=>{if(!rca)return;const extra=perts.length?` y sus ${perts.length} pertinencia${perts.length>1?'s':''}`:'';if(window.confirm(`¿Eliminar la RCA${extra} de ${inst?.nombre}?\n\nSe borran el PDF y el checklist. Las auditorías ya asignadas no cambian. No se puede deshacer.`))void eliminarRca(rca);};
- const reprocesarRca=(r:Rca)=>trabajar('Orbit está procesando la RCA…',async()=>{const leido=await descargarPaginas(r.archivoPath,r.nombre);await indexar('rca',r.id,r.numero||r.nombre,leido.pages);const x=await extractRca({data:{id:r.id,text:leido.text}});setEdit({kind:'rca',doc:{...r,items:x.items,validados:false}});await snapshotRefresh();});
+ const reprocesarRca=(r:Rca)=>trabajar('Orbit está procesando la RCA…',async()=>{await procesar('rca',r,await descargar(r.archivoPath,r.nombre));});
  const cargarPert=(file:File)=>trabajar('Leyendo la pertinencia…',async()=>{
   if(!rca)throw new Error('Primero carga la RCA de la instalación.');if(!esPdf(file))throw new Error('Selecciona un archivo PDF.');
-  const leido=await readPdf(file);const text=leido.text;const path=await subirArchivo(file,'pertinencias/');
+  const path=await subirArchivo(file,'pertinencias/');
   const p=await supabase.from('pertinencias').insert({rca_id:rca.id,instalacion_id:instId,nombre:file.name.replace(/\.pdf$/i,''),archivo_path:path}).select('*').single();
   if(p.error){await supabase.storage.from('rca-documents').remove([path]);throw p.error;}
-  const draft:Pertinencia={id:p.data.id,rcaId:rca.id,instalacionId:instId,numero:'',nombre:p.data.nombre,fecha:p.data.fecha,archivoPath:path,items:[],validados:false};
-  await indexar('pertinencia',draft.id,draft.nombre,leido.pages);
-  setStatus('Orbit está buscando qué cambia la pertinencia…');
-  try{const x=await extractPertinencia({data:{id:draft.id,text}});setEdit({kind:'pertinencia',doc:{...draft,items:x.items}});toast.success(x.items.length?`La pertinencia propone ${x.items.length} compromisos.`:'La pertinencia no agrega compromisos nuevos.');}
-  catch(e){setEdit({kind:'pertinencia',doc:draft});throw e;}
-  finally{await snapshotRefresh();}
+  await procesar('pertinencia',{id:p.data.id,rcaId:rca.id,instalacionId:instId,numero:'',nombre:p.data.nombre,fecha:p.data.fecha,archivoPath:path,items:[],validados:false},file);
  });
- const reprocesarPert=(p:Pertinencia)=>trabajar('Orbit está procesando la pertinencia…',async()=>{const leido=await descargarPaginas(p.archivoPath,p.nombre);await indexar('pertinencia',p.id,p.numero||p.nombre,leido.pages);const x=await extractPertinencia({data:{id:p.id,text:leido.text}});setEdit({kind:'pertinencia',doc:{...p,items:x.items,validados:false}});await snapshotRefresh();});
+ const reprocesarPert=(p:Pertinencia)=>trabajar('Orbit está procesando la pertinencia…',async()=>{await procesar('pertinencia',p,await descargar(p.archivoPath,p.nombre));});
  const borrarPert=(p:Pertinencia)=>trabajar('Eliminando la pertinencia…',async()=>{await supabase.from('documento_fragmentos').delete().eq('documento_id',p.id);const r=await supabase.from('pertinencias').delete().eq('id',p.id);if(r.error)throw r.error;await supabase.storage.from('rca-documents').remove([p.archivoPath]);await snapshotRefresh();});
- const indexar=async(tipo:'rca'|'pertinencia',documentoId:string,nombre:string,pages:string[])=>{try{await indexarDocumento({data:{instalacionId:instId,tipo,documentoId,nombre,paginas:pages}});}catch(e){toast.error(e instanceof Error?e.message:'No se pudo indexar el documento.');}};
- const descargarPaginas=async(path:string,nombre:string)=>{const d=await supabase.storage.from('rca-documents').download(path);if(d.error)throw d.error;return readPdf(new File([d.data],nombre+'.pdf',{type:'application/pdf'}));};
- const reindexar=()=>trabajar('Indexando los documentos para el asistente…',async()=>{let n=0;if(rca?.archivoPath){const x=await descargarPaginas(rca.archivoPath,rca.nombre);await indexar('rca',rca.id,rca.numero||rca.nombre,x.pages);n++;}for(const p of perts){const x=await descargarPaginas(p.archivoPath,p.nombre);await indexar('pertinencia',p.id,p.numero||p.nombre,x.pages);n++;}toast.success(n?`${n} documento${n>1?'s':''} indexado${n>1?'s':''}: Orbit ya puede buscar en ellos.`:'No hay documentos para indexar.');});
+ const reindexar=()=>trabajar('Indexando los documentos para el asistente…',async()=>{
+  const docs=[...(rca?.archivoPath?[{tipo:'rca' as const,id:rca.id,path:rca.archivoPath,nombre:rca.numero||rca.nombre}]:[]),...perts.map(p=>({tipo:'pertinencia' as const,id:p.id,path:p.archivoPath,nombre:p.numero||p.nombre}))];
+  for(const [n,d] of docs.entries()){const pages=await leerPdf(await descargar(d.path,d.nombre),x=>setProgreso({pct:Math.round(((n+x.pct/100)/docs.length)*100),etapa:`Indexando ${d.nombre} · ${x.etapa.toLowerCase()}`}));await indexarDocumento({data:{instalacionId:instId,tipo:d.tipo,documentoId:d.id,nombre:d.nombre,paginas:pages}});}
+  toast.success(docs.length?`${docs.length} documento${docs.length>1?'s':''} indexado${docs.length>1?'s':''}: Orbit ya puede buscar en ellos.`:'No hay documentos para indexar.');
+ });
  const verPdf=async(path:string)=>{try{const x=await getFileUrl({data:{bucket:'rca-documents',path}});if(x.url)window.open(x.url,'_blank','noopener,noreferrer');}catch(e){toast.error(e instanceof Error?e.message:'No se pudo abrir el PDF.');}};
 
  if(data.rol!=='admin')return <Page><p>Acceso restringido.</p></Page>;
  const total=checklistInstalacion(rca,perts).length;
 
  return <Page><PageHeader title="RCA y checklist" subtitle="Una RCA por instalación. Orbit la cruza con la normativa de su tipo y tú validas el resultado."/>
-  {busy&&<p role="status" className="mb-6 flex items-center gap-2 text-muted-foreground"><RefreshCw className="size-4 animate-spin"/>{status}</p>}
+  {busy&&(progreso?<div role="status" aria-live="polite" className="mb-6 rounded-2xl border border-border-subtle bg-surface p-4"><div className="mb-3 flex items-baseline justify-between gap-3"><p className="text-sm font-medium">Generando el checklist</p><p className="font-mono text-sm tabular-nums">{progreso.pct}%</p></div><Progress value={progreso.pct} max={100} aria-label="Avance del checklist"/><p className="mt-2 text-xs text-muted-foreground">{progreso.etapa}</p></div>:<p role="status" className="mb-6 flex items-center gap-2 text-muted-foreground"><RefreshCw className="size-4 animate-spin"/>{status}</p>)}
   {edit?<Editor key={edit.doc.id} edicion={edit} busy={busy||guardarRca.isPending||guardarPert.isPending} onClose={()=>setEdit(null)} onSave={async(meta,items)=>{if(edit.kind==='rca')await guardarRca.mutateAsync({id:edit.doc.id,numero:meta.numero,nombre:meta.nombre,fecha:meta.fecha,estado:meta.estado,items,validados:true});else await guardarPert.mutateAsync({id:edit.doc.id,numero:meta.numero,nombre:meta.nombre,fecha:meta.fecha,items,validados:true});setEdit(null);toast.success('Checklist confirmado.');}}/>:<>
   {!data.instalaciones.length?<p className="py-8 text-center text-muted-foreground">Crea una instalación para comenzar.</p>:<>
    <div className="mb-6 flex flex-wrap gap-2">{data.instalaciones.map(i=>{const tiene=data.rcas.find(r=>r.instalacionId===i.id);return <button key={i.id} type="button" aria-pressed={i.id===instId} onClick={()=>setInstId(i.id)} className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${i.id===instId?'border-foreground bg-muted text-foreground':'border-border text-muted-foreground hover:text-foreground'}`}>{i.nombre}<span className="ml-2 text-xs opacity-70">{tiene?.validados?'✓':tiene?'•':''}</span></button>;})}</div>

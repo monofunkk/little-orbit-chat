@@ -19,3 +19,6 @@
 - [x] Editar y eliminar instalaciones (también desde el chat, con confirmación).
 - [ ] Búsqueda semántica con embeddings (pgvector disponible) si Orbit expone un modelo de embeddings; hoy la búsqueda es léxica.
 - [ ] Evidencias en foto: hoy solo se indexa el texto de los PDF.
+- [x] Lectura de RCA sin 504: PDF a markdown liviano en el navegador (títulos, tablas, sin encabezados repetidos), corte por secciones y lectura de a 3 en paralelo con reintento y respaldo GLM 5.3.
+- [x] Verificación de la normativa contra el índice de la RCA: cada obligación queda unida al compromiso que la cubre o agregada con su motivo.
+- [x] Barra de avance con porcentaje mientras se genera el checklist.
