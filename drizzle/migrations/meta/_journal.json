@@ -1,5 +1,27 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792513443640,
+      "tag": "0000_audit_platform",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792513779402,
+      "tag": "0001_installation_read_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792514193075,
+      "tag": "0002_restrict_trigger_execution",
+      "breakpoints": true
+    }
+  ]
 }

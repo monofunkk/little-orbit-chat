@@ -1,0 +1,2 @@
+DROP POLICY installation_read ON public.instalaciones;
+CREATE POLICY installation_read ON public.instalaciones FOR SELECT TO authenticated USING(public.has_role(auth.uid(),'admin') OR EXISTS(SELECT 1 FROM public.auditorias a WHERE a.instalacion_id=instalaciones.id AND a.supervisor_id=auth.uid()));

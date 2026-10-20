@@ -9,180 +9,271 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as InstalacionesRouteImport } from './routes/instalaciones'
-import { Route as RcaRouteImport } from './routes/rca'
-import { Route as ReportesRouteImport } from './routes/reportes'
-import { Route as RevisionRouteImport } from './routes/revision'
-import { Route as AuditoriasIndexRouteImport } from './routes/auditorias.index'
-import { Route as AuditoriasIdRouteImport } from './routes/auditorias.$id'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedInstalacionesRouteImport } from './routes/_authenticated/instalaciones'
+import { Route as AuthenticatedRcaRouteImport } from './routes/_authenticated/rca'
+import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated/reportes'
+import { Route as AuthenticatedRevisionRouteImport } from './routes/_authenticated/revision'
+import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
+import { Route as AuthenticatedAuditoriasIndexRouteImport } from './routes/_authenticated/auditorias.index'
+import { Route as AuthenticatedAuditoriasIdRouteImport } from './routes/_authenticated/auditorias.$id'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const InstalacionesRoute = InstalacionesRouteImport.update({
-  id: '/instalaciones',
-  path: '/instalaciones',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RcaRoute = RcaRouteImport.update({
+const AuthenticatedInstalacionesRoute =
+  AuthenticatedInstalacionesRouteImport.update({
+    id: '/instalaciones',
+    path: '/instalaciones',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedRcaRoute = AuthenticatedRcaRouteImport.update({
   id: '/rca',
   path: '/rca',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ReportesRoute = ReportesRouteImport.update({
+const AuthenticatedReportesRoute = AuthenticatedReportesRouteImport.update({
   id: '/reportes',
   path: '/reportes',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const RevisionRoute = RevisionRouteImport.update({
+const AuthenticatedRevisionRoute = AuthenticatedRevisionRouteImport.update({
   id: '/revision',
   path: '/revision',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuditoriasIndexRoute = AuditoriasIndexRouteImport.update({
-  id: '/auditorias/',
-  path: '/auditorias/',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuditoriasIdRoute = AuditoriasIdRouteImport.update({
-  id: '/auditorias/$id',
-  path: '/auditorias/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedAuditoriasIndexRoute =
+  AuthenticatedAuditoriasIndexRouteImport.update({
+    id: '/auditorias/',
+    path: '/auditorias/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAuditoriasIdRoute =
+  AuthenticatedAuditoriasIdRouteImport.update({
+    id: '/auditorias/$id',
+    path: '/auditorias/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/instalaciones': typeof InstalacionesRoute
-  '/rca': typeof RcaRoute
-  '/reportes': typeof ReportesRoute
-  '/revision': typeof RevisionRoute
-  '/auditorias/$id': typeof AuditoriasIdRoute
-  '/auditorias/': typeof AuditoriasIndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/instalaciones': typeof AuthenticatedInstalacionesRoute
+  '/rca': typeof AuthenticatedRcaRoute
+  '/reportes': typeof AuthenticatedReportesRoute
+  '/revision': typeof AuthenticatedRevisionRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/auditorias/$id': typeof AuthenticatedAuditoriasIdRoute
+  '/auditorias/': typeof AuthenticatedAuditoriasIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/instalaciones': typeof InstalacionesRoute
-  '/rca': typeof RcaRoute
-  '/reportes': typeof ReportesRoute
-  '/revision': typeof RevisionRoute
-  '/auditorias/$id': typeof AuditoriasIdRoute
-  '/auditorias': typeof AuditoriasIndexRoute
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/instalaciones': typeof AuthenticatedInstalacionesRoute
+  '/rca': typeof AuthenticatedRcaRoute
+  '/reportes': typeof AuthenticatedReportesRoute
+  '/revision': typeof AuthenticatedRevisionRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/auditorias/$id': typeof AuthenticatedAuditoriasIdRoute
+  '/auditorias': typeof AuthenticatedAuditoriasIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/instalaciones': typeof InstalacionesRoute
-  '/rca': typeof RcaRoute
-  '/reportes': typeof ReportesRoute
-  '/revision': typeof RevisionRoute
-  '/auditorias/$id': typeof AuditoriasIdRoute
-  '/auditorias/': typeof AuditoriasIndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/instalaciones': typeof AuthenticatedInstalacionesRoute
+  '/_authenticated/rca': typeof AuthenticatedRcaRoute
+  '/_authenticated/reportes': typeof AuthenticatedReportesRoute
+  '/_authenticated/revision': typeof AuthenticatedRevisionRoute
+  '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/auditorias/$id': typeof AuthenticatedAuditoriasIdRoute
+  '/_authenticated/auditorias/': typeof AuthenticatedAuditoriasIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
+    | '/reset-password'
     | '/instalaciones'
     | '/rca'
     | '/reportes'
     | '/revision'
+    | '/usuarios'
     | '/auditorias/$id'
     | '/auditorias/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
+    | '/auth'
+    | '/reset-password'
     | '/instalaciones'
     | '/rca'
     | '/reportes'
     | '/revision'
+    | '/usuarios'
+    | '/'
     | '/auditorias/$id'
     | '/auditorias'
   id:
     | '__root__'
-    | '/'
-    | '/instalaciones'
-    | '/rca'
-    | '/reportes'
-    | '/revision'
-    | '/auditorias/$id'
-    | '/auditorias/'
+    | '/_authenticated'
+    | '/auth'
+    | '/reset-password'
+    | '/_authenticated/instalaciones'
+    | '/_authenticated/rca'
+    | '/_authenticated/reportes'
+    | '/_authenticated/revision'
+    | '/_authenticated/usuarios'
+    | '/_authenticated/'
+    | '/_authenticated/auditorias/$id'
+    | '/_authenticated/auditorias/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  InstalacionesRoute: typeof InstalacionesRoute
-  RcaRoute: typeof RcaRoute
-  ReportesRoute: typeof ReportesRoute
-  RevisionRoute: typeof RevisionRoute
-  AuditoriasIdRoute: typeof AuditoriasIdRoute
-  AuditoriasIndexRoute: typeof AuditoriasIndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/instalaciones': {
-      id: '/instalaciones'
+    '/_authenticated/instalaciones': {
+      id: '/_authenticated/instalaciones'
       path: '/instalaciones'
       fullPath: '/instalaciones'
-      preLoaderRoute: typeof InstalacionesRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedInstalacionesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/rca': {
-      id: '/rca'
+    '/_authenticated/rca': {
+      id: '/_authenticated/rca'
       path: '/rca'
       fullPath: '/rca'
-      preLoaderRoute: typeof RcaRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedRcaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/reportes': {
-      id: '/reportes'
+    '/_authenticated/reportes': {
+      id: '/_authenticated/reportes'
       path: '/reportes'
       fullPath: '/reportes'
-      preLoaderRoute: typeof ReportesRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedReportesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/revision': {
-      id: '/revision'
+    '/_authenticated/revision': {
+      id: '/_authenticated/revision'
       path: '/revision'
       fullPath: '/revision'
-      preLoaderRoute: typeof RevisionRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedRevisionRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/auditorias/': {
-      id: '/auditorias/'
+    '/_authenticated/usuarios': {
+      id: '/_authenticated/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/auditorias/': {
+      id: '/_authenticated/auditorias/'
       path: '/auditorias'
       fullPath: '/auditorias/'
-      preLoaderRoute: typeof AuditoriasIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAuditoriasIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/auditorias/$id': {
-      id: '/auditorias/$id'
+    '/_authenticated/auditorias/$id': {
+      id: '/_authenticated/auditorias/$id'
       path: '/auditorias/$id'
       fullPath: '/auditorias/$id'
-      preLoaderRoute: typeof AuditoriasIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAuditoriasIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedInstalacionesRoute: typeof AuthenticatedInstalacionesRoute
+  AuthenticatedRcaRoute: typeof AuthenticatedRcaRoute
+  AuthenticatedReportesRoute: typeof AuthenticatedReportesRoute
+  AuthenticatedRevisionRoute: typeof AuthenticatedRevisionRoute
+  AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAuditoriasIdRoute: typeof AuthenticatedAuditoriasIdRoute
+  AuthenticatedAuditoriasIndexRoute: typeof AuthenticatedAuditoriasIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedInstalacionesRoute: AuthenticatedInstalacionesRoute,
+  AuthenticatedRcaRoute: AuthenticatedRcaRoute,
+  AuthenticatedReportesRoute: AuthenticatedReportesRoute,
+  AuthenticatedRevisionRoute: AuthenticatedRevisionRoute,
+  AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAuditoriasIdRoute: AuthenticatedAuditoriasIdRoute,
+  AuthenticatedAuditoriasIndexRoute: AuthenticatedAuditoriasIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  InstalacionesRoute: InstalacionesRoute,
-  RcaRoute: RcaRoute,
-  ReportesRoute: ReportesRoute,
-  RevisionRoute: RevisionRoute,
-  AuditoriasIdRoute: AuditoriasIdRoute,
-  AuditoriasIndexRoute: AuditoriasIndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

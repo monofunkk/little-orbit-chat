@@ -1,0 +1,11 @@
+import {createFileRoute} from '@tanstack/react-router';
+import {useState} from 'react';
+import {Page,PageHeader} from '@/components/app-shell';
+import {Button} from '@/components/arc/button/button';
+import {Input} from '@/components/arc/input/input';
+import {snapshotOptions,useSnapshot,useAction} from '@/lib/audit-query';
+import {setUserRole} from '@/lib/audit.functions';
+import {supabase} from '@/integrations/supabase/client';
+import {toast} from 'sonner';
+export const Route=createFileRoute('/_authenticated/usuarios')({loader:({context})=>context.queryClient.ensureQueryData(snapshotOptions),head:()=>({meta:[{title:'Equipo — Invermar Audit'},{name:'description',content:'Perfiles y accesos del equipo de auditoría.'},{property:'og:title',content:'Equipo — Invermar Audit'},{property:'og:description',content:'Gestiona los accesos del equipo.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary'}]}),component:Equipo});
+function Equipo(){const data=useSnapshot();const [nombre,setNombre]=useState(data.nombre);const role=useAction((input:{id:string;role:'admin'|'supervisor'})=>setUserRole({data:input}));const profile=useAction(async()=>{const r=await supabase.from('profiles').update({nombre:nombre.trim()}).eq('id',data.userId);if(r.error)throw r.error;toast.success('Nombre actualizado.');});return <Page><PageHeader title="Equipo"/><form className="mb-10 flex max-w-md flex-col gap-3" onSubmit={e=>{e.preventDefault();profile.mutate(undefined);}}><Input label="Mi nombre" required value={nombre} onChange={e=>setNombre(e.target.value)}/><Button type="submit" loading={profile.isPending}>Guardar nombre</Button></form>{data.rol==='admin'&&data.supervisores.map(p=><div key={p.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle py-4"><p>{p.nombre}</p>{p.id!==data.userId&&<div className="flex gap-2"><Button size="sm" variant="secondary" loading={role.isPending} onClick={()=>role.mutate({id:p.id,role:'supervisor'})}>Supervisor</Button><Button size="sm" variant="secondary" loading={role.isPending} onClick={()=>role.mutate({id:p.id,role:'admin'})}>Administrador</Button></div>}</div>)}</Page>}

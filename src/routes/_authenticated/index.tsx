@@ -1,12 +1,14 @@
+import { snapshotOptions, useSnapshot, useAction } from "@/lib/audit-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowUp, Building2, ClipboardCheck, FileUp, Inbox } from "lucide-react";
 import { useRol } from "@/components/app-shell";
-import { auditorias, instalacionPorId, fmtFecha } from "@/lib/mock-data";
+import { fmtFecha } from "@/lib/domain";
+import { Button } from "@/components/arc/button/button";
 import { porcentajeCumplimiento } from "@/lib/semaforo";
 import { SemaforoDot } from "@/components/semaforo-badge";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Inicio — Invermar Audit" },
@@ -17,6 +19,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(snapshotOptions),
   component: Index,
 });
 
@@ -28,12 +31,13 @@ const sugerenciasAdmin = [
 ] as const;
 
 function Index() {
-  const { rol } = useRol();
+  const { rol, nombre, userId, auditorias, instalaciones } = useSnapshot();
+  const instalacionPorId = (id:string) => instalaciones.find(i=>i.id===id);
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const hora = new Date().getHours();
   const saludo = hora < 12 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
-  const mias = auditorias.filter((a) => a.supervisor === "Camila Soto" && ["Asignada", "En progreso", "Rechazada"].includes(a.estado));
+  const mias = auditorias.filter((a) => a.supervisorId === userId && ["Asignada", "En progreso", "Rechazada"].includes(a.estado));
   const enRevision = auditorias.filter((a) => a.estado === "En revisión");
 
   const go = () => {
@@ -50,7 +54,7 @@ function Index() {
       <div className="flex w-full max-w-2xl flex-1 flex-col justify-center py-16">
         <div className="mb-10 text-center">
           <h1 className="font-display text-4xl font-semibold tracking-tight md:text-5xl">
-            {saludo}, <span className="ink-gradient">{rol === "admin" ? "Andrea" : "Camila"}</span>
+            {saludo}, <span className="ink-gradient">{nombre.split(" ")[0]}</span>
           </h1>
           <p className="mt-3 text-muted-foreground">
             {rol === "admin" ? "¿Qué quieres hacer hoy?" : `Tienes ${mias.length} auditorías por completar.`}
@@ -70,11 +74,11 @@ function Index() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Ej: revisar auditorías pendientes, subir RCA…"
-                className="h-12 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
+                className="h-12 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
               />
-              <button type="submit" aria-label="Ir" className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95">
+              <Button type="submit" aria-label="Ir" className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95">
                 <ArrowUp className="size-4" />
-              </button>
+              </Button>
             </form>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {sugerenciasAdmin.map(({ label, to, icon: Icon }) => (
@@ -103,7 +107,7 @@ function Index() {
                   className="composer flex items-center justify-between gap-4 p-5 transition-transform hover:-translate-y-0.5"
                 >
                   <div>
-                    <p className="font-medium">{inst.nombre}</p>
+                    <p className="font-medium">{inst?.nombre}</p>
                     <p className="mt-0.5 text-sm text-muted-foreground">
                       Vence {fmtFecha(a.fechaLimite)} · {hechos} ítems revisados
                     </p>
@@ -114,11 +118,11 @@ function Index() {
                 </Link>
               );
             })}
-            {enRevision.filter((a) => a.supervisor === "Camila Soto").map((a) => (
+            {enRevision.filter((a) => a.supervisorId === userId).map((a) => (
               <div key={a.id} className="flex items-center justify-between rounded-2xl px-5 py-3 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
                   <SemaforoDot pct={porcentajeCumplimiento(a.respuestas)} />
-                  {instalacionPorId(a.instalacionId).nombre}
+                  {instalacionPorId(a.instalacionId)?.nombre}
                 </span>
                 <span>Enviada a revisión</span>
               </div>
