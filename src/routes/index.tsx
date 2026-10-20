@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowUp, Building2, ClipboardCheck, FileUp, Inbox, Sparkles } from "lucide-react";
+import { ArrowUp, Building2, ClipboardCheck, FileUp, Inbox } from "lucide-react";
 import { useRol } from "@/components/app-shell";
 import { auditorias, instalacionPorId, fmtFecha } from "@/lib/mock-data";
 import { porcentajeCumplimiento } from "@/lib/semaforo";
@@ -49,9 +49,6 @@ function Index() {
     <div className="glow-top relative flex min-h-[calc(100vh-4rem)] flex-col items-center px-5 md:min-h-screen">
       <div className="flex w-full max-w-2xl flex-1 flex-col justify-center py-16">
         <div className="mb-10 text-center">
-          <span className="mb-5 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-secondary-foreground">
-            <Sparkles className="size-3" /> Checklists generados con IA desde tus RCA
-          </span>
           <h1 className="font-display text-4xl font-semibold tracking-tight md:text-5xl">
             {saludo}, <span className="ink-gradient">{rol === "admin" ? "Andrea" : "Camila"}</span>
           </h1>

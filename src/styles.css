@@ -76,9 +76,44 @@
   border-radius: calc(var(--radius) + 14px);
 }
 
+/*
+ * Silver wave: the greeting name reads as brushed silver with a crest of light
+ * rolling across it. The tile starts and ends on the same tone so the loop is
+ * seamless, and it repeats at a fixed 600px width regardless of the name length.
+ */
 @utility ink-gradient {
-  background: var(--arc-gradient-ink);
+  background-image: linear-gradient(
+    to right,
+    oklch(72% 0.01 250) 0%,
+    oklch(96% 0.004 240) 12%,
+    oklch(78% 0.008 250) 24%,
+    oklch(64% 0.012 255) 34%,
+    oklch(80% 0.008 245) 46%,
+    oklch(99% 0.002 235) 56%,
+    oklch(84% 0.006 240) 66%,
+    oklch(66% 0.012 255) 78%,
+    oklch(88% 0.005 240) 90%,
+    oklch(72% 0.01 250) 100%
+  );
+  background-size: 600px 100%;
+  background-repeat: repeat-x;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  animation: silver-wave 9s linear infinite;
+}
+
+@keyframes silver-wave {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 600px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-gradient {
+    animation: none;
+  }
 }
