@@ -15,6 +15,13 @@
       "when": 1792513779402,
       "tag": "0001_installation_read_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792514193075,
+      "tag": "0002_restrict_trigger_execution",
+      "breakpoints": true
     }
   ]
 }
