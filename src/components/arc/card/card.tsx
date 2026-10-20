@@ -141,7 +141,7 @@ export function Card({ title, description, media, action, avatar, meta, status, 
     className={[styles["card"], className].filter(Boolean).join(" ")}
     style={{ ...style, borderRadius: geometry.card ?? style?.borderRadius } as unknown as MotionStyle}
     data-hover={hovered || undefined}
-    whileHover={reduced ? undefined : { y: -2 }}
+    {...(reduced ? {} : { whileHover: { y: -2 } })}
     onHoverStart={() => setHovered(true)}
     onHoverEnd={() => setHovered(false)}
     {...shared("card", "card")}

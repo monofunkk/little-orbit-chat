@@ -3,7 +3,7 @@
 import { forwardRef, isValidElement, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode, Ref, RefObject } from "react";
 import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion } from "motion/react";
-import type { TargetAndTransition, Variants } from "motion/react";
+import type { HTMLMotionProps, TargetAndTransition, Variants } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./button.module.css";
 
