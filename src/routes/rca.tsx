@@ -25,7 +25,7 @@ type Paso = "subir" | "leyendo" | "validar";
 function RcaPage() {
   const [paso, setPaso] = useState<Paso>("subir");
   const [archivo, setArchivo] = useState<string | null>(null);
-  const [instId, setInstId] = useState(instalaciones[0].id);
+  const [instId, setInstId] = useState(instalaciones[0]?.id ?? "");
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [confirmado, setConfirmado] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);

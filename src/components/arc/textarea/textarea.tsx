@@ -36,12 +36,12 @@ function MotionText({ text }: { text: string }) {
 }
 
 /** Helper and error copy: the row opens its height on a spring, then the words settle in. */
-function FieldMessage({ id, text, className, alert }: { id?: string; text?: string; className?: string; alert?: boolean }) {
+function FieldMessage({ id, text, className, alert }: { id?: string | undefined; text?: string | undefined; className?: string | undefined; alert?: boolean | undefined }) {
   return <AnimatePresence initial={false}>{text ? <MessageRow key="message" id={id} text={text} className={className} alert={alert} /> : null}</AnimatePresence>;
 }
 
 /** The row tracks the measured copy, so a longer message that wraps opens its next line instead of snapping. */
-function MessageRow({ id, text, className, alert }: { id?: string; text: string; className?: string; alert?: boolean }) {
+function MessageRow({ id, text, className, alert }: { id?: string | undefined; text: string; className?: string | undefined; alert?: boolean | undefined }) {
   const reduced = useReducedMotion();
   const copyRef = useRef<HTMLSpanElement>(null);
   const [height, setHeight] = useState<number | "auto">("auto");

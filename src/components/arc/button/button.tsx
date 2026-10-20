@@ -62,9 +62,9 @@ function useMorphWidth(content: RefObject<HTMLElement | null>, key: string, redu
     const observer = new ResizeObserver(([entry]) => {
       if (!entry) return;
       const next = entry.contentRect.width;
-      if (!next || !measured || reduced || performance.now() > armedUntil.current) { measured = next > 0; width.jump(next || "auto"); delete slot.dataset.morphing; return; }
-      slot.dataset.morphing = "";
-      animate(width, next, { ...motionTokens.spring.morph, onComplete: () => { delete slot.dataset.morphing; } });
+      if (!next || !measured || reduced || performance.now() > armedUntil.current) { measured = next > 0; width.jump(next || "auto"); delete slot.dataset["morphing"]; return; }
+      slot.dataset["morphing"] = "";
+      animate(width, next, { ...motionTokens.spring.morph, onComplete: () => { delete slot.dataset["morphing"]; } });
     });
     observer.observe(node);
     return () => observer.disconnect();
@@ -106,7 +106,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-busy={loading || undefined}
       custom={buttonRef}
       variants={pressVariants}
-      whileTap={reduceMotion || anchorsLayer || inert ? undefined : "pressed"}
+      {...(reduceMotion || anchorsLayer || inert ? {} : { whileTap: "pressed" })}
       transition={motionTokens.spring.snappy}
       {...props}
       // Loading keeps the button focusable (a disabled button would drop keyboard focus mid-action) and swallows presses instead.

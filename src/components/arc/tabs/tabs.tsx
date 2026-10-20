@@ -24,7 +24,7 @@ export function Tabs({ value, defaultValue, onValueChange, className, ...props }
   function handleChange(next: string) {
     const frame = root.current;
     leavingRectRef.current = frame?.querySelector(':scope > [role="tabpanel"][data-state="active"]')?.getBoundingClientRect() ?? null;
-    const order = frame ? Array.from(frame.querySelectorAll<HTMLElement>('[role="tab"][data-value]')).filter(tab => tab.closest(`.${styles["root"]}`) === frame).map(tab => tab.dataset.value) : [];
+    const order = frame ? Array.from(frame.querySelectorAll<HTMLElement>('[role="tab"][data-value]')).filter(tab => tab.closest(`.${styles["root"]}`) === frame).map(tab => tab.dataset["value"]) : [];
     const from = order.indexOf(active), to = order.indexOf(next);
     if (from >= 0 && to >= 0 && from !== to) setDirection(to > from ? 1 : -1);
     if (value === undefined) setInternal(next); onValueChange?.(next);

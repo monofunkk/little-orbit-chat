@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import type { HTMLMotionProps, MotionProps, Transition, Variants } from "motion/react";
+import type { HTMLMotionProps, MotionProps, MotionStyle, Transition, Variants } from "motion/react";
 import { X } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./card.module.css";
@@ -28,7 +28,7 @@ export interface CardProps extends HTMLAttributes<HTMLElement> {
 }
 
 type Side = "card" | "panel";
-type Geometry = { card?: number; panel?: number; measure?: number };
+type Geometry = { card?: number | undefined; panel?: number | undefined; measure?: number | undefined };
 type Landing = { top: number; left: number; width: number; height: number };
 
 const { blur, duration, ease, spring, stagger } = motionTokens;
@@ -60,7 +60,7 @@ function Status({ text, reduced }: { text: string; reduced: boolean }) {
   return <span className={styles["status"]} role="status">
     <span className={styles["srOnly"]}>{text}</span>
     <span className={styles["roll"]} aria-hidden="true"><AnimatePresence mode="popLayout" initial={false}>
-      <motion.span key={text} className={styles["line"]} variants={lineMotion} initial={reduced ? false : "enter"} animate="center" exit={reduced ? undefined : "exit"}>
+      <motion.span key={text} className={styles["line"]} variants={lineMotion} initial={reduced ? false : "enter"} animate="center" {...(reduced ? {} : { exit: "exit" })}>
         {text.split(/(\s+)/).map((part, index) => <motion.span key={index} className={styles["word"]} custom={index / 2} variants={wordMotion}>{part}</motion.span>)}
       </motion.span>
     </AnimatePresence></span>
@@ -136,10 +136,10 @@ export function Card({ title, description, media, action, avatar, meta, status, 
   </div> : null;
 
   const card = <motion.article
-    {...(props as HTMLMotionProps<"article">)}
+    {...(props as unknown as HTMLMotionProps<"article">)}
     ref={cardRef}
     className={[styles["card"], className].filter(Boolean).join(" ")}
-    style={{ ...style, borderRadius: geometry.card ?? style?.borderRadius }}
+    style={{ ...style, borderRadius: geometry.card ?? style?.borderRadius } as unknown as MotionStyle}
     data-hover={hovered || undefined}
     whileHover={reduced ? undefined : { y: -2 }}
     onHoverStart={() => setHovered(true)}
@@ -171,7 +171,7 @@ export function Card({ title, description, media, action, avatar, meta, status, 
               data-framer-portal-id={group}
               data-returning={returning || undefined}
               layoutScroll
-              style={{ borderRadius: geometry.panel, "--card-measure": geometry.measure ? `${geometry.measure}px` : undefined, ...(landing && returning ? { "--landing-top": `${landing.top}px`, "--landing-left": `${landing.left}px`, "--landing-width": `${landing.width}px`, "--landing-height": `${landing.height}px` } : {}) } as CSSProperties}
+              style={{ borderRadius: geometry.panel, "--card-measure": geometry.measure ? `${geometry.measure}px` : undefined, ...(landing && returning ? { "--landing-top": `${landing.top}px`, "--landing-left": `${landing.left}px`, "--landing-width": `${landing.width}px`, "--landing-height": `${landing.height}px` } : {}) } as unknown as MotionStyle}
               {...(morph ? {
                 ...shared("card", "panel"),
                 initial: false,
@@ -181,7 +181,7 @@ export function Card({ title, description, media, action, avatar, meta, status, 
               } : { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0, transition: fade }, transition: fade })}
             >
               {media ? <motion.div className={styles["media"]} {...shared("media", "panel")}><motion.div className={styles["zoom"]} initial={{ scale: hovered && !reduced ? ZOOM : 1 }} animate={{ scale: 1 }} transition={grow}>{media}</motion.div></motion.div> : null}
-              <motion.span className={styles["closeSlot"]} initial={reduced ? { opacity: 0 } : { opacity: 0, scale: .9 }} animate={returning ? { opacity: 0, scale: .9 } : { opacity: 1, scale: 1 }} transition={returning ? fade : reduced ? fade : closeIn}><Dialog.Close asChild><motion.button type="button" className={styles["close"]} aria-label="Close quick look" whileTap={reduced ? undefined : { scale: .94 }} transition={spring.snappy}><X width={16} height={16} strokeWidth={1.75} aria-hidden="true" /></motion.button></Dialog.Close></motion.span>
+              <motion.span className={styles["closeSlot"]} initial={reduced ? { opacity: 0 } : { opacity: 0, scale: .9 }} animate={returning ? { opacity: 0, scale: .9 } : { opacity: 1, scale: 1 }} transition={returning ? fade : reduced ? fade : closeIn}><Dialog.Close asChild><motion.button type="button" className={styles["close"]} aria-label="Close quick look" {...(reduced ? {} : { whileTap: { scale: .94 } })} transition={spring.snappy}><X width={16} height={16} strokeWidth={1.75} aria-hidden="true" /></motion.button></Dialog.Close></motion.span>
               <div className={styles["content"]}>
                 <Dialog.Title asChild><motion.h2 className={styles["title"]} {...shared("title", "panel")}>{title}</motion.h2></Dialog.Title>
                 {description ? <Dialog.Description asChild><motion.p className={styles["description"]} {...shared("description", "panel", "position")}>{description}</motion.p></Dialog.Description> : null}
