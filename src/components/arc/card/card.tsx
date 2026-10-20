@@ -136,7 +136,7 @@ export function Card({ title, description, media, action, avatar, meta, status, 
   </div> : null;
 
   const card = <motion.article
-    {...(props as unknown as HTMLMotionProps<"article">)}
+    {...(props as unknown as Omit<HTMLMotionProps<"article">, "ref">)}
     ref={cardRef}
     className={[styles["card"], className].filter(Boolean).join(" ")}
     style={{ ...style, borderRadius: geometry.card ?? style?.borderRadius } as unknown as MotionStyle}
@@ -175,7 +175,7 @@ export function Card({ title, description, media, action, avatar, meta, status, 
               {...(morph ? {
                 ...shared("card", "panel"),
                 initial: false,
-                animate: geometry.card !== undefined && geometry.panel !== undefined ? { borderRadius: returning ? geometry.card : geometry.panel } : undefined,
+                ...(geometry.card !== undefined && geometry.panel !== undefined ? { animate: { borderRadius: returning ? geometry.card : geometry.panel } } : {}),
                 transition: { layout: returning ? settle : grow, borderRadius: returning ? settle : grow },
                 exit: { opacity: 0, transition: { duration: 0 } },
               } : { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0, transition: fade }, transition: fade })}

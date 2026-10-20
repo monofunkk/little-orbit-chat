@@ -108,7 +108,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       variants={pressVariants}
       {...(reduceMotion || anchorsLayer || inert ? {} : { whileTap: "pressed" })}
       transition={motionTokens.spring.snappy}
-      {...props}
+      {...(props as unknown as Omit<HTMLMotionProps<"button">, "ref">)}
       // Loading keeps the button focusable (a disabled button would drop keyboard focus mid-action) and swallows presses instead.
       aria-disabled={loading || props["aria-disabled"] || undefined}
       onClick={loading ? event => event.preventDefault() : onClick}

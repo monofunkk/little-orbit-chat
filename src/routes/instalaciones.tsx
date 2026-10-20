@@ -21,12 +21,12 @@ export const Route = createFileRoute("/instalaciones")({
   component: Instalaciones,
 });
 
-const tipos: TipoInstalacion[] = ["Centro de cultivo", "Planta de proceso", "Bodega", "Oficina"];
+const tipos = ["Centro de cultivo", "Planta de proceso", "Bodega", "Oficina"] as const satisfies readonly TipoInstalacion[];
 
 function Instalaciones() {
   const [lista, setLista] = useState<Instalacion[]>(seed);
   const [nueva, setNueva] = useState(false);
-  const [form, setForm] = useState({ nombre: "", ubicacion: "", tipo: tipos[0] });
+  const [form, setForm] = useState<{ nombre: string; ubicacion: string; tipo: TipoInstalacion }>({ nombre: "", ubicacion: "", tipo: tipos[0] });
 
   return (
     <Page>
